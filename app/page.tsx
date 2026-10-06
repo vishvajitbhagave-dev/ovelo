@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 type Step = { tool: string; args: unknown; result: any; error?: boolean };
 type Message = { role: "user" | "agent"; text: string; steps?: Step[]; error?: boolean };
 type Status = { hasApiKey: boolean; model: string; tools: { name: string; description: string }[] };
-type WalletInfo = { address: string | null; balance?: string };
+type WalletInfo = { address: string | null; balance?: string; error?: string };
 
 const EXAMPLES = ["What's the weather in Mumbai?", "What's in your wallet?", "Roll a 20 sided dice"];
 
@@ -50,7 +50,13 @@ export default function Home() {
 
   async function createWallet() {
     setCreating(true);
-    await fetch("/api/wallet", { method: "POST" });
+    const res = await fetch("/api/wallet", { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    if (data.error) {
+      setWallet((w) => ({ address: null, ...w, error: data.error }));
+      setCreating(false);
+      return;
+    }
     await loadWallet();
     setCreating(false);
   }
@@ -121,6 +127,7 @@ export default function Home() {
               <SetupStep number={2} title="Create the agent wallet" done={Boolean(wallet?.address)}>
                 {wallet && !wallet.address && (
                   <div className="flex flex-col gap-3">
+                    {wallet.error && <p className="text-destructive">{wallet.error}</p>}
                     <p className="text-muted-foreground">The agent signs payments with this wallet to use paid APIs.</p>
                     <Button onClick={createWallet} disabled={creating} className="w-fit font-mono tracking-wider uppercase">
                       <Wallet /> {creating ? "Creating..." : "Create wallet"}

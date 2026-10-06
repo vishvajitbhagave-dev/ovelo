@@ -40,7 +40,15 @@ function requireAccount() {
 export function createWallet() {
   if (loadAccount()) return getWalletAddress();
   const privateKey = generatePrivateKey();
-  fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey }, null, 2));
+  try {
+    fs.writeFileSync(WALLET_FILE, JSON.stringify({ privateKey }, null, 2));
+  } catch (err) {
+    throw new Error(
+      `Could not save the wallet to ${WALLET_FILE} (${err instanceof Error ? err.message : String(err)}). ` +
+        "This server's file system is read-only. On a host like Vercel, set WALLET_PRIVATE_KEY in the " +
+        "environment variables instead of using this button."
+    );
+  }
   return privateKeyToAccount(privateKey).address;
 }
 

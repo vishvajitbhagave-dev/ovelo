@@ -11,5 +11,9 @@ export async function GET() {
 
 // POST /api/wallet -> create the agent's wallet
 export async function POST() {
-  return Response.json({ address: createWallet() });
+  try {
+    return Response.json({ address: createWallet() });
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
 }

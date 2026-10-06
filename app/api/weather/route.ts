@@ -11,7 +11,9 @@ const ASSET = "USDC";
 const PAY_TO = "0x000000000000000000000000000000000000dEaD"; // the API owner's wallet (demo)
 
 export async function GET(req: Request) {
-  const city = new URL(req.url).searchParams.get("city") ?? "Unknown";
+  // `req.url` is sometimes only a path behind a proxy. The dummy base is
+  // ignored when the URL is already absolute; it just stops the parse throwing.
+  const city = new URL(req.url, "http://placeholder.invalid").searchParams.get("city") ?? "Unknown";
 
   const payment = await verifyPayment(req.headers.get("X-PAYMENT"));
   if (!payment || payment.to !== PAY_TO || Number(payment.amount) < Number(PRICE)) {
