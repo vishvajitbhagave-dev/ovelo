@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   Bot,
   Check,
@@ -19,6 +19,7 @@ import { Card, CardAction, CardContent, CardFooter, CardHeader } from "@/compone
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RiskCard } from "@/components/risk-card";
 import { cn } from "@/lib/utils";
 
 type Step = { tool: string; args: unknown; result: any; error?: boolean };
@@ -212,7 +213,12 @@ export default function Home() {
                       <Bot className="size-4 text-primary" />
                     </div>
                     <div className="flex min-w-0 flex-col gap-2">
-                      {m.steps?.map((s, j) => <ToolCall key={j} step={s} />)}
+                      {m.steps?.map((s, j) => (
+                        <Fragment key={j}>
+                          <ToolCall step={s} />
+                          {s.tool === "check_ticket_risk" && <RiskCard result={s.result} />}
+                        </Fragment>
+                      ))}
                       <div className={cn("px-4 py-2.5 whitespace-pre-wrap", m.error ? "flex gap-2 bg-destructive/10 text-destructive" : "bg-muted")}>
                         {m.error && <CircleAlert className="mt-0.5 size-4 shrink-0" />}
                         {m.text}
