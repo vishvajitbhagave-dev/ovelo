@@ -9,6 +9,7 @@
  * and save. It shows up in the "Tools" list on the page.
  */
 import { getWalletAddress, getWalletBalance, payAndFetch } from "./wallet";
+import { DEMO_EVENT, DEMO_TICKETS, DEMO_TICKET_IDS, assessTicketRisk, findDemoTicket } from "./tickets";
 
 export type Tool = {
   name: string;
@@ -59,5 +60,54 @@ export const tools: Tool[] = [
       },
     },
     run: async ({ sides = 6 }) => ({ rolled: Math.floor(Math.random() * sides) + 1, sides }),
+  },
+
+  // ─── 4. Ovelo: list the fake demo tickets ───
+  {
+    name: "list_demo_tickets",
+    description:
+      "List the demo tickets available, with each ticket's id, event, seat and asking price. " +
+      "Use this first when someone asks what tickets are available, so you know the valid ids. " +
+      "DEMO ONLY: these are fake tickets and they cannot verify anything real.",
+    parameters: { type: "object", properties: {} },
+    run: async () => ({
+      event: DEMO_EVENT,
+      demoOnly: true,
+      count: DEMO_TICKETS.length,
+      tickets: DEMO_TICKETS.map((t) => ({
+        id: t.id,
+        event: t.event,
+        seat: t.seat,
+        askingPriceUsd: t.askingPriceUsd,
+      })),
+    }),
+  },
+
+  // ─── 5. Ovelo: check one fake ticket's risk (rules live in agent/tickets.ts) ───
+  {
+    name: "check_ticket_risk",
+    description:
+      "Check the resale risk of ONE demo ticket and get back a risk level (LOW, MEDIUM or HIGH), " +
+      "a score, plain-English reasons and a recommendation. " +
+      "You must call this before saying anything about whether a ticket is safe. " +
+      "DEMO ONLY: these are fake tickets and they cannot verify anything real.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticketId: { type: "string", description: "The demo ticket id, e.g. OV-1001" },
+      },
+      required: ["ticketId"],
+    },
+    run: async ({ ticketId }) => {
+      const ticket = findDemoTicket(String(ticketId ?? ""));
+      if (!ticket) {
+        return {
+          found: false,
+          error: `There is no demo ticket with id "${String(ticketId ?? "")}".`,
+          validTicketIds: DEMO_TICKET_IDS,
+        };
+      }
+      return { found: true, demoOnly: true, ...assessTicketRisk(ticket) };
+    },
   },
 ];
