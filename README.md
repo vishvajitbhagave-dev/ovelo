@@ -1,41 +1,119 @@
-# agentmaxxin
+# Ovelo
 
-A minimal Next.js template for building AI agents that call tools and pay for services with their own crypto wallet. The agent is powered by Google Gemini.
+An AI agent that helps resale-ticket buyers decide whether a deal looks safe.
 
-The template is intentionally small. You will spend almost all of your time in a single file, `agent/tools.ts`, where each tool is a plain TypeScript function that the agent can decide to call.
+> **This is a demo with fake data.** Ovelo cannot check real tickets, real sellers, or real event companies. Everything it knows about comes from six made-up demo tickets. See [Honest limits](#honest-limits).
 
-## What You Get
+## The problem
 
-1. A working agent loop that sends your message to Gemini, runs any tools Gemini asks for, and returns the final answer.
-2. A tools file where you add, remove, or change the functions your agent can use.
-3. An agent wallet that can sign payments, based on the x402 payment pattern.
-4. A mock paid weather API that refuses requests until the agent pays for them.
-5. A single page interface with guided setup, a one click wallet button, and a chat that shows every tool call and payment.
+Buying a resale ticket online is a bit of a gamble. Common ways people get burned:
 
-## Prerequisites
+1. **Copied tickets.** Someone photographs a real ticket and sells the same seat twice. The second buyer turns up at the gate and gets nothing.
+2. **Already-used tickets.** The ticket was already scanned at the door once, and the seller tries to sell it again.
+3. **Fake sellers.** The seller isn't the person the ticket is registered to, the price is wildly over the official resale cap, or the ticket comes from an issuer nobody has ever heard of.
 
-1. Node.js version 20 or newer. Check with `node -v`.
-2. A free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
+The signs are usually visible somewhere in the listing. The problem is that most buyers don't know which signs matter.
 
-## Getting Started
+## How it works
 
-### Step 1. Create your project
+The important idea: **the risk level comes from fixed rules in code, not from the AI.**
 
-Run the following command in your terminal. Replace `my-agent` with any folder name you like.
+The AI is not asked to judge whether a ticket is safe. That job belongs to a plain TypeScript function in [`agent/tickets.ts`](agent/tickets.ts), which adds up points and then buckets the total. This means the same ticket always gets the same answer, and you can read the rules to know exactly why.
+
+### The rules and their scores
+
+| Rule | Score |
+| :--- | ---: |
+| Ticket has already been scanned at the gate | +100 |
+| Seller is not the current owner of the ticket | +100 |
+| Ticket issuer is not verified | +80 |
+| Asking price is more than **2×** the resale cap | +70 |
+| Asking price is above the resale cap, up to 2× | +40 |
+| Ticket changed hands less than 10 minutes ago | +25 |
+
+The price rules are mutually exclusive — a ticket gets either +70 or +40, never both. Rules can stack, so one ticket can pick up several at once.
+
+### How a score becomes a level
+
+| Total score | Risk level | Recommendation |
+| :--- | :--- | :--- |
+| 70 or more | **HIGH** | do not fund |
+| 25 to 69 | **MEDIUM** | ask the buyer to approve first |
+| Under 25 | **LOW** | ok to proceed |
+
+### What the AI actually does
+
+Once the code has produced a level, a score, and a list of reasons, Gemini turns it into a normal, friendly explanation. That's it. Its system prompt tells it to base every answer only on the tool's output, to always say *why*, and to never invent or soften a risk level.
+
+So: **code decides, AI explains.** If you want to change how a ticket is judged, you edit a number in `agent/tickets.ts` — you don't touch the model.
+
+### The tools
+
+| Tool | What it does |
+| :--- | :--- |
+| `list_demo_tickets` | Lists the six demo tickets with their id, seat and asking price. |
+| `check_ticket_risk` | Runs the rules against one ticket id and returns the level, score, reasons and recommendation. |
+
+If you ask about a ticket id that doesn't exist, the tool says so and lists the valid ids instead of failing.
+
+## The demo tickets
+
+Six fake tickets for the fictional event **Demo Music Night 2026**.
+
+| Ticket | Seat | Asking price | What stands out | Risk |
+| :--- | :--- | ---: | :--- | :--- |
+| **OV-1001** | Floor A · Row 4 · Seat 12 | $165 | Owner is selling, issuer verified, under the $180 cap | **LOW** (0) |
+| **OV-1002** | Balcony B · Row 11 · Seat 6 | $175 | Already scanned at the gate | **HIGH** (100) |
+| **OV-1003** | Floor A · Row 7 · Seat 3 | $190 | Seller isn't the owner, and it's $10 over the $180 cap | **HIGH** (140) |
+| **OV-1004** | Floor C · Row 2 · Seat 21 | $480 | More than twice the $200 cap | **HIGH** (70) |
+| **OV-1005** | Floor B · Row 9 · Seat 15 | $170 | Issuer is not verified | **HIGH** (80) |
+| **OV-1006** | Balcony A · Row 3 · Seat 8 | $230 | Changed hands 2 minutes ago, and it's $30 over the $200 cap | **MEDIUM** (65) |
+
+OV-1003 picks up two rules at once, which is why its score (140) is higher than its headline problem. That's intentional — it's the clearest example of several warning signs stacking up.
+
+Try asking the agent *"Show me the tickets"*, then *"Is OV-1006 safe to buy?"*, then *"check OV-9999"* to see the not-found path.
+
+## What is built vs what is planned
+
+### Built today
+
+1. Six demo tickets and a rule-based risk engine in `agent/tickets.ts`.
+2. The `list_demo_tickets` and `check_ticket_risk` tools.
+3. A system prompt that keeps the AI as an explainer and keeps it honest about the demo.
+4. The starter kit's chat, the Tools panel, the Setup panel, and the agent wallet — all still working.
+5. The starter kit's `get_weather` (a paid demo API), `get_my_wallet`, and `roll_dice` tools.
+
+### Planned — not built yet
+
+Nothing below exists in the code today. It's here so you know where the project is headed.
+
+| Planned | What it would mean |
+| :--- | :--- |
+| **Paid ticket-history report using x402** | A buyer pays a small amount per check, using the same sign-a-payment pattern the weather demo already uses. |
+| **Escrow payment on Base Sepolia** | Hold the buyer's money in escrow and release it to the seller once the ticket passes the gate, instead of paying the seller up front. |
+| **Demo gate scanner** | A page that "scans" a ticket barcode, flips `alreadyScanned` to true, and shows what Ovelo says before and after. |
+| **A designed UI** | Replace the starter kit's generic chat page with a purpose-built ticket-review screen showing the level, the score, and each reason. |
+
+## Honest limits
+
+1. **It only works on fake tickets.** The six demo tickets are made up. Ovelo has no connection to any real ticketing system.
+2. **It cannot verify real tickets or real companies.** It cannot look up a real event, check a real barcode, confirm a real issuer, or find out whether a real seller has been caught scamming before.
+3. **The starter kit's payments are signed but not sent on-chain.** The weather demo signs a payment message with the agent's wallet and the API verifies the signature, but no transaction is ever submitted and no real funds move. It's a working demonstration of the pattern, not a real payment.
+4. **The written explanation is still written by the AI.** The level, score and reasons all come from code, but the wording around them comes from Gemini. If you need the wording guaranteed to match the score, the UI should render those fields directly rather than trusting the prose.
+
+Don't use Ovelo to make a real purchase decision.
+
+## How to run it
+
+**You need:** Node.js 20 or newer (check with `node -v`) and a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+### Step 1. Install
 
 ```bash
-npx agentmaxxin my-agent
+npm install
 ```
 
-This copies the template into a new folder, creates a `.env` file for you, and installs all packages.
-
-### Step 2. Move into the project folder
-
-```bash
-cd my-agent
-```
-
-### Step 3. Add your Gemini API key
+### Step 2. Add your API key
 
 Open the `.env` file in the project root and paste your key after the equals sign:
 
@@ -43,150 +121,53 @@ Open the `.env` file in the project root and paste your key after the equals sig
 GEMINI_API_KEY=your_key_here
 ```
 
-Save the file. The key stays on your machine and is never committed to git.
+Use your own key — never paste a real one into this README or anywhere else that gets committed. `.env` is already in `.gitignore`, so it stays on your machine.
 
-### Step 4. Start the app
+Restart the server after any change to `.env`.
+
+### Step 3. Start the app
 
 ```bash
 npm run dev
 ```
 
-### Step 5. Create the agent wallet
+### Step 4. Open it and create the wallet
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. The Setup panel on the left walks you through everything.
+Open [http://localhost:3000](http://localhost:3000). The Setup panel on the left walks you through it. Click **Create wallet**.
 
-Click **Create wallet**. The agent now has its own wallet, which it uses to sign payments for paid APIs. The wallet is saved in `.agent-wallet.json` in your project folder, so it stays the same after a restart.
+The agent now has its own wallet, which it uses to sign payments for the paid weather demo. It's saved to `.agent-wallet.json`, so it survives restarts.
 
-### Step 6. Talk to your agent
+### Step 5. Ask it something
 
-Try one of these prompts:
+Try:
 
-1. `What's the weather in Mumbai?` The agent calls the paid weather API and pays for it with its wallet.
-2. `What's in your wallet?` The agent reads its own wallet address and balance.
-3. `Roll a 20 sided dice` The agent calls a simple tool with no wallet involved.
+1. `Show me the demo tickets` — lists all six.
+2. `Is OV-1003 safe to buy?` — runs the rules and explains why.
+3. `Is OV-1004 safe to buy?` — a HIGH result. The agent should say do not fund.
 
-Click any tool entry above a reply to see exactly what the agent sent and received. The agent remembers the conversation, so you can ask follow up questions. Use **Clear** to start over.
+Click any tool entry above a reply to see exactly what went in and came out. The agent remembers the conversation, so follow-up questions work. Use **Clear** to start over.
 
-### Step 7. Build your own tool
-
-Open `agent/tools.ts` and add a new object to the `tools` list. For example:
-
-```ts
-{
-  name: "get_joke",
-  description: "Get a random joke.",
-  parameters: { type: "object", properties: {} },
-  run: async () => {
-    const res = await fetch("https://official-joke-api.appspot.com/random_joke");
-    return res.json();
-  },
-},
-```
-
-Save the file and refresh the page. Your new tool appears in the Tools panel. Now ask your agent to tell you a joke.
-
-## Writing Good Tools
-
-Every tool has four parts.
-
-| Field | Purpose |
-| :--- | :--- |
-| `name` | A unique identifier in snake case, such as `get_weather`. |
-| `description` | Plain English explaining what the tool does. Gemini reads this to decide when to use it, so be clear and specific. |
-| `parameters` | A JSON Schema describing the inputs. Gemini fills in these values for you. |
-| `run` | The function that does the work. Whatever it returns is sent back to Gemini. |
-
-A few guidelines:
-
-1. Return plain objects, for example `{ temperature: 28 }`, rather than strings or class instances.
-2. Keep each tool focused on one job. Several small tools work better than one large tool.
-3. If something can fail, let it throw. The agent loop catches the error and reports it back to Gemini, which can then explain the problem or try again.
-
-## How It Works
-
-### The agent loop
-
-The loop lives in `agent/agent.ts`.
-
-1. Your message and the list of tools are sent to Gemini.
-2. If Gemini replies with a tool call, the matching `run` function is executed and its result is sent back to Gemini.
-3. This repeats until Gemini replies with plain text, which becomes the final answer.
-4. The loop stops after five rounds to prevent runaway tool calls.
-
-### Paying for an API
-
-The weather tool demonstrates the x402 pattern, where an agent pays for an API one request at a time.
-
-1. The agent requests `/api/weather`.
-2. The API responds with status `402 Payment Required` along with a price, an asset, and a recipient address.
-3. The agent wallet signs a payment message for that amount.
-4. The agent repeats the request with the signed payment in an `X-PAYMENT` header.
-5. The API verifies the signature and responds with status `200 OK` and the weather data.
-
-All of this is handled by the `payAndFetch` helper in `agent/wallet.ts`. Any tool that calls a paid API can use the same helper.
-
-Payments in this template are cryptographically signed but are not submitted to a blockchain, so no real funds are ever moved.
-
-## Project Structure
-
-| Path | Description |
-| :--- | :--- |
-| `agent/tools.ts` | The tools your agent can use. This is the file you will edit most. |
-| `agent/agent.ts` | The agent loop that communicates with Gemini. |
-| `agent/wallet.ts` | The agent wallet, payment signing, and payment verification. |
-| `app/page.tsx` | The page: setup steps, tools list, and chat. |
-| `app/api/agent/route.ts` | The server endpoint that runs the agent. |
-| `app/api/wallet/route.ts` | The server endpoint that creates and reads the agent wallet. |
-| `app/api/weather/route.ts` | The mock paid weather API. |
-| `components/ui/` | Interface components from [shadcn/ui](https://ui.shadcn.com). You do not need to edit these. |
-| `.env` | Your API key and optional settings. |
-| `.agent-wallet.json` | The agent wallet, created when you click Create wallet. Never share this file. |
-
-## Configuration
-
-All settings live in the `.env` file.
+### Optional settings
 
 | Variable | Required | Description |
 | :--- | :--- | :--- |
 | `GEMINI_API_KEY` | Yes | Your Gemini API key. |
-| `GEMINI_MODEL` | No | The Gemini model to use. Defaults to `gemini-flash-latest`. |
-| `WALLET_PRIVATE_KEY` | No | Use an existing wallet instead of the Create wallet button. A private key starting with `0x`. When set, it takes priority over `.agent-wallet.json`. |
+| `GEMINI_MODEL` | No | Which Gemini model to use. Defaults to `gemini-flash-latest`. |
+| `WALLET_PRIVATE_KEY` | No | Use a wallet you already have instead of the Create wallet button. |
 
-Restart `npm run dev` after changing any value in `.env`.
+## Tech stack
 
-## The Agent Wallet
-
-Clicking **Create wallet** generates a new private key and saves it to `.agent-wallet.json`. The file is listed in `.gitignore`, so it is never committed.
-
-Once the wallet exists, the Setup panel shows:
-
-1. The wallet address, with a button to copy it.
-2. The current ETH balance on Base Sepolia, with a refresh button.
-3. A link to view the wallet on the Base Sepolia block explorer.
-4. A link to faucets where you can request free test ETH.
-
-To start again with a new wallet, stop the server, delete `.agent-wallet.json`, restart, and click **Create wallet** again.
-
-To use a wallet you already have, set `WALLET_PRIVATE_KEY` in `.env` instead.
-
-> **Security note:** Only ever use this wallet for testing. Never send real funds to it. Private keys in `.agent-wallet.json` and `.env` are stored as plain text.
-
-## Troubleshooting
-
-| Problem | Solution |
+| Tool | Used for |
 | :--- | :--- |
-| The page says to add `GEMINI_API_KEY` | Add your key to `.env` and restart `npm run dev`. |
-| The agent never uses my new tool | Make the `description` more specific about when the tool should be used, then restart the server. |
-| The weather tool fails with "no wallet yet" | Click **Create wallet** in the Setup panel, then ask again. |
-| Port 3000 is already in use | Run `npm run dev -- -p 3001` and open that port instead. |
-| A model error appears in the chat | Check that your API key is valid, or set a different model in `GEMINI_MODEL`. |
+| [Next.js](https://nextjs.org) | The app and its API routes. |
+| [Google Gen AI SDK](https://www.npmjs.com/package/@google/genai) | Gemini, including function calling. |
+| [viem](https://viem.sh) | Wallet creation, message signing, and reading Base Sepolia. |
+| x402 payment pattern | The sign-a-payment-to-unlock-an-API flow, demoed by the paid weather tool. |
+| Base Sepolia testnet | The test network the wallet points at. |
 
-## Tech Stack
+## Credits
 
-1. [Next.js](https://nextjs.org) for the app and API routes.
-2. [shadcn/ui](https://ui.shadcn.com) and [Tailwind CSS](https://tailwindcss.com) for the interface.
-3. [Google Gen AI SDK](https://www.npmjs.com/package/@google/genai) for Gemini function calling.
-4. [viem](https://viem.sh) for wallet creation, message signing, and reading Base Sepolia.
+Built on the **Agentmaxxing starter kit**, which supplied the agent loop, the tool system, the wallet, and the paid weather demo. Ovelo adds the ticket data, the risk rules, and the two tools on top.
 
 ## License
 
