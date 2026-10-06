@@ -28,6 +28,15 @@ export type Ticket = {
   /** Highest price this event is allowed to be resold at. */
   resaleCapUsd: number;
   minutesSinceLastTransfer: number;
+  /** The organisation that issued the ticket. Used by the paid history report. */
+  issuerName: string;
+  /**
+   * Every registered owner of this ticket, oldest first.
+   * The last entry is always `currentOwnerName`.
+   * If `sellerName` is NOT in this list, someone outside the ownership
+   * chain is trying to sell it — which is exactly what the risk rules catch.
+   */
+  ownerHistory: string[];
 };
 
 export type TicketRisk = {
@@ -59,6 +68,8 @@ export const DEMO_TICKETS: Ticket[] = [
     faceValueUsd: 120,
     resaleCapUsd: 180,
     minutesSinceLastTransfer: 4320,
+    issuerName: "Demo Music Night Official Box Office",
+    ownerHistory: ["Nisha Raman", "Priya Raman"],
   },
   {
     // The barcode has already been read at the gate → it is being resold twice.
@@ -73,6 +84,8 @@ export const DEMO_TICKETS: Ticket[] = [
     faceValueUsd: 120,
     resaleCapUsd: 180,
     minutesSinceLastTransfer: 2880,
+    issuerName: "Demo Music Night Official Box Office",
+    ownerHistory: ["Omar Okafor", "Daniel Okafor"],
   },
   {
     // Seller does not match the registered owner → third-party resale.
@@ -87,6 +100,9 @@ export const DEMO_TICKETS: Ticket[] = [
     faceValueUsd: 120,
     resaleCapUsd: 180,
     minutesSinceLastTransfer: 1440,
+    issuerName: "Moonlight Ticketing Co.",
+    // Marcus Feld sells this one but has never owned it — he is absent here on purpose.
+    ownerHistory: ["Leo Bello", "Aisha Bello"],
   },
   {
     // Asking price is more than double the cap → clear profit motive.
@@ -101,6 +117,8 @@ export const DEMO_TICKETS: Ticket[] = [
     faceValueUsd: 120,
     resaleCapUsd: 200,
     minutesSinceLastTransfer: 5760,
+    issuerName: "Demo Music Night Official Box Office",
+    ownerHistory: ["Clara Villanueva", "Diego Herrera", "Sofia Marino"],
   },
   {
     // The issuer is not on the trusted list → counterfeit risk.
@@ -115,6 +133,8 @@ export const DEMO_TICKETS: Ticket[] = [
     faceValueUsd: 120,
     resaleCapUsd: 180,
     minutesSinceLastTransfer: 3020,
+    issuerName: "GlobalTix Resale Hub",
+    ownerHistory: ["Yusuf Rahman", "Tomás Rivera"],
   },
   {
     // Just transferred, and a little over the cap → worth pausing on.
@@ -129,6 +149,8 @@ export const DEMO_TICKETS: Ticket[] = [
     faceValueUsd: 120,
     resaleCapUsd: 200,
     minutesSinceLastTransfer: 2,
+    issuerName: "Moonlight Ticketing Co.",
+    ownerHistory: ["Mira Kapoor", "Ravi Sharma", "Hana Ito"],
   },
 ];
 

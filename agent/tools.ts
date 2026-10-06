@@ -110,4 +110,29 @@ export const tools: Tool[] = [
       return { found: true, demoOnly: true, ...assessTicketRisk(ticket) };
     },
   },
+
+  // ─── 6. Ovelo: a PAID history report (x402, same price as the weather API) ───
+  {
+    name: "get_ticket_history_report",
+    description:
+      "Buy the paid ticket history report for ONE demo ticket. Costs 0.01 USDC, the same price as the " +
+      "weather API, paid automatically from the agent's wallet. Returns extra background the free tools do " +
+      "not show: the issuer's name and verified status, the original face value, a timeline of events " +
+      "(issued, transferred from owner to owner, and whether it has been scanned), and how many owners it " +
+      "has had. Get this BEFORE check_ticket_risk when judging a ticket, then run check_ticket_risk for the " +
+      "risk level. The report has no risk level of its own. DEMO ONLY: these are fake tickets and it cannot " +
+      "verify anything real.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticketId: { type: "string", description: "The demo ticket id, e.g. OV-1001" },
+      },
+      required: ["ticketId"],
+    },
+    run: async ({ ticketId }, { baseUrl }) => {
+      return payAndFetch(
+        `${baseUrl}/api/ticket-report?ticketId=${encodeURIComponent(String(ticketId ?? ""))}`
+      );
+    },
+  },
 ];
