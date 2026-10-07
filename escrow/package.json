@@ -1,0 +1,25 @@
+{
+  "name": "ovelo-escrow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ovelo ticket escrow smart contracts (demo). Compiled and tested locally only. Nothing is deployed.",
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "clean": "hardhat clean"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
+    "@nomicfoundation/hardhat-node-test-runner": "^3.0.0",
+    "@nomicfoundation/hardhat-viem": "^3.0.4",
+    "@nomicfoundation/hardhat-viem-assertions": "^3.0.5",
+    "@types/node": "^24.0.0",
+    "hardhat": "^3.18.1",
+    "typescript": "^5.9.0",
+    "viem": "^2.47.6"
+  }
+}

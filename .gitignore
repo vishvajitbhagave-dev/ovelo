@@ -5,3 +5,10 @@ node_modules
 next-env.d.ts
 *.tsbuildinfo
 .DS_Store
+
+# Smart-contract project (escrow/) — build artifacts and any local keys
+escrow/node_modules
+escrow/artifacts
+escrow/cache
+escrow/typechain-types
+escrow/.env
