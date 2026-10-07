@@ -1,16 +1,20 @@
 import "./globals.css";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Bricolage_Grotesque, Figtree, JetBrains_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-// Same fonts as agentmaxxin.xyz
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
+// Same fonts as the design prototype: Figtree for text, Bricolage Grotesque for headings.
+const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree" });
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage" });
 const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 
-export const metadata = { title: "Agentic Starter" };
+export const metadata = {
+  title: "Ovelo — Buy resale tickets safely",
+  description: "Ovelo checks resale event tickets for risk before you pay. Demo tickets only.",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn("dark font-sans antialiased", spaceGrotesk.variable, jetBrainsMono.variable)}>
+    <html lang="en" className={cn("font-sans antialiased", figtree.variable, bricolage.variable, jetBrainsMono.variable)}>
       <body>{children}</body>
     </html>
   );

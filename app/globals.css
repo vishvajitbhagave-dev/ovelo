@@ -5,8 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-space-grotesk);
-    --font-sans: var(--font-space-grotesk);
+    --font-heading: var(--font-bricolage);
+    --font-sans: var(--font-figtree);
+    --font-display: var(--font-bricolage);
     --font-mono: var(--font-jetbrains-mono);
     --color-ring: var(--ring);
     --color-input: var(--input);
@@ -27,7 +28,12 @@
     --color-foreground: var(--foreground);
     --color-background: var(--background);
     --color-blue: var(--blue);
-    --color-blue-soft: var(--blue-soft);
+    --color-low: var(--low);
+    --color-low-soft: var(--low-soft);
+    --color-medium: var(--medium);
+    --color-medium-soft: var(--medium-soft);
+    --color-high: var(--high);
+    --color-high-soft: var(--high-soft);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -38,30 +44,35 @@
 }
 
 :root {
-    /* Agentmaxxing palette */
-    --background: #0A0A0A;
-    --foreground: #F2F1EC;
-    --card: #111110;
-    --card-foreground: #F2F1EC;
-    --popover: #111110;
-    --popover-foreground: #F2F1EC;
-    --primary: #C8E850;
-    --primary-foreground: #0A0A0A;
-    --secondary: #2A2A28;
-    --secondary-foreground: #F2F1EC;
-    --muted: #1A1A19;
-    --muted-foreground: #9A9A93;
-    --accent: #2A2A28;
-    --accent-foreground: #F2F1EC;
-    --destructive: #FF6B5A;
-    --border: rgba(242, 241, 236, 0.13);
-    --input: rgba(242, 241, 236, 0.24);
-    --ring: #C8E850;
+    /* Ovelo demo palette — light, warm, rounded cards. */
+    --background: oklch(0.975 0.008 80);
+    --foreground: oklch(0.24 0.04 275);
+    --card: oklch(0.995 0.003 80);
+    --card-foreground: oklch(0.24 0.04 275);
+    --popover: oklch(0.995 0.003 80);
+    --popover-foreground: oklch(0.24 0.04 275);
+    --primary: oklch(0.33 0.12 272);
+    --primary-foreground: oklch(0.98 0.005 80);
+    --secondary: oklch(0.94 0.02 275);
+    --secondary-foreground: oklch(0.33 0.12 272);
+    --muted: oklch(0.945 0.01 80);
+    --muted-foreground: oklch(0.5 0.03 275);
+    --accent: oklch(0.92 0.03 275);
+    --accent-foreground: oklch(0.3 0.12 272);
+    --border: oklch(0.9 0.012 80);
+    --input: oklch(0.9 0.012 80);
+    --ring: oklch(0.5 0.12 272);
+    --destructive: oklch(0.56 0.2 27);
+    --low: oklch(0.55 0.14 155);
+    --low-soft: oklch(0.95 0.04 155);
+    --medium: oklch(0.62 0.15 70);
+    --medium-soft: oklch(0.95 0.05 80);
+    --high: oklch(0.56 0.2 27);
+    --high-soft: oklch(0.95 0.035 27);
     --blue: #2030D8;
-    --blue-soft: #8C96FF;
-    --radius: 0rem;
+    --radius: 1rem;
+    --shadow-card: 0 1px 2px oklch(0.3 0.05 275 / 6%), 0 8px 24px -12px oklch(0.3 0.08 275 / 18%);
 }
-
 
 @layer base {
   * {
@@ -74,9 +85,12 @@
     @apply font-sans;
     }
 }
-/* Faint 6 column grid behind the page, like agentmaxxin.xyz */
-body {
-  background-image: linear-gradient(to right, rgba(242, 241, 236, 0.045) 1px, transparent 1px);
-  background-size: calc(100% / 6) 100%;
+
+@utility card-surface {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card);
 }
+
 ::selection { background: var(--primary); color: var(--primary-foreground); }

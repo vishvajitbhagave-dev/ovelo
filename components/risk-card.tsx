@@ -57,11 +57,11 @@ export function parseRiskResult(result: unknown): RiskData | null {
   };
 }
 
-/** LOW = green, MEDIUM = amber, HIGH = red. Readable on the dark theme. */
+/** LOW = green, MEDIUM = amber, HIGH = red, using the theme's risk tokens. */
 const LEVEL_STYLE: Record<RiskLevel, { badge: string; edge: string; label: string; dot: string }> = {
-  LOW: { badge: "bg-green-500 text-green-950", edge: "border-l-green-500", label: "text-green-500", dot: "bg-green-500" },
-  MEDIUM: { badge: "bg-amber-400 text-amber-950", edge: "border-l-amber-400", label: "text-amber-400", dot: "bg-amber-400" },
-  HIGH: { badge: "bg-red-600 text-white", edge: "border-l-red-600", label: "text-red-500", dot: "bg-red-600" },
+  LOW: { badge: "bg-low-soft text-low", edge: "border-l-low", label: "text-low", dot: "bg-low" },
+  MEDIUM: { badge: "bg-medium-soft text-medium", edge: "border-l-medium", label: "text-medium", dot: "bg-medium" },
+  HIGH: { badge: "bg-high-soft text-high", edge: "border-l-high", label: "text-high", dot: "bg-high" },
 };
 
 export function RiskCard({ result }: { result: unknown }) {
@@ -71,7 +71,12 @@ export function RiskCard({ result }: { result: unknown }) {
   const style = LEVEL_STYLE[data.riskLevel];
 
   return (
-    <div className={cn("w-full min-w-0 border border-l-2 bg-background", style.edge)}>
+    <div
+      className={cn(
+        "w-full min-w-0 overflow-hidden rounded-2xl border border-l-2 bg-card shadow-[var(--shadow-card)]",
+        style.edge
+      )}
+    >
       {/* Ticket id, level badge, score */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-muted/40 px-3 py-2">
         <span className="font-mono text-sm font-bold break-words">{data.ticketId}</span>
