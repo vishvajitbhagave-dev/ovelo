@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["hardhat.config.ts", "test/**/*.ts"]
+  "include": ["hardhat.config.ts", "test/**/*.ts", "scripts/**/*.ts"]
 }

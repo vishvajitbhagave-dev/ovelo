@@ -1,0 +1,11 @@
+{
+    "deploymentTxHash":  "0xd7ba8e63c03219d8dab813d76d4c4151f83ae4c922bc8b9c0cf5266a6928c18d",
+    "token":  "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "deployedAt":  "2026-10-08T12:28:41.420Z",
+    "maxDealAmount":  "5000000",
+    "address":  "0xaaa0c9d296efa3df324d26d0757608ceb408be8e",
+    "scanner":  "0xdcBe6C7861cB7cB29BEc1682d6aE701c6B4cB2b6",
+    "chainId":  84532,
+    "network":  "baseSepolia",
+    "deployer":  "0xd9f3b19ffcf9c22fc776a5e1335618cce5788621"
+}
