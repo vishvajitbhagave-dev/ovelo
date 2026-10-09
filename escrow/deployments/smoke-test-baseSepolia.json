@@ -1,0 +1,32 @@
+{
+  "network": "baseSepolia",
+  "chainId": 84532,
+  "ticketTextId": "OV-TEST-0001",
+  "ticketIdBytes32": "0x003a0fd607cc94fc5d39a6c21547fd71c8d7648334ab563c971fb6acc6676480",
+  "dealId": "1",
+  "txHashes": {
+    "approve": "0x6cef2889d07256fce2b17ea08ed591f21d6076b0f91bd4a8750cd4f7aa331394",
+    "fund": "0xc790845a09136b9b0bed18c0e901e969b6a4cf7e31f8042ac774ffaa073d34a4",
+    "checkIn": "0x3511e438f4e174f60a2f469484ca6c9027eb4af480b342ab0322f95a2bc5ba33"
+  },
+  "amountUsdcBaseUnits": "1000000",
+  "addresses": {
+    "contract": "0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E",
+    "token": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "agent": "0x865b100A911a0eEA2ef8781614EB1737526E7683",
+    "scanner": "0xdcBe6C7861cB7cB29BEc1682d6aE701c6B4cB2b6",
+    "seller": "0x3c86C6a22564E1515E4628426a3ca6a03C28c04d"
+  },
+  "statusAfterFund": "1",
+  "statusAfterCheckIn": "2",
+  "balances": {
+    "sellerBefore": "0",
+    "sellerAfter": "1000000",
+    "sellerDelta": "1000000",
+    "escrowBefore": "0",
+    "escrowAfter": "0"
+  },
+  "secondScanRevert": "The contract function \"checkIn\" reverted with the following reason:\nOveloEscrow: deal already checked in - rejected second scan",
+  "note": "Values re-read directly from the chain after the run. The first in-script read hit a lagging load-balanced Base Sepolia node, so the script now polls reads until they are consistent.",
+  "ranAt": "2026-10-09T01:02:05.637Z"
+}
