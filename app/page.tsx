@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RiskCard } from "@/components/risk-card";
 import { TicketsTab } from "@/components/tickets-tab";
-import { CheckTab, type CheckState, type Step } from "@/components/check-tab";
+import { CheckTab, type CheckState, type EscrowTx, type FundedDeal, type Step } from "@/components/check-tab";
 import { WalletTab, type WalletInfo } from "@/components/wallet-tab";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +45,8 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("tickets");
   const [check, setCheck] = useState<CheckState>({ status: "idle" });
   const [chatOpen, setChatOpen] = useState(false);
+  const [escrowTxs, setEscrowTxs] = useState<EscrowTx[]>([]);
+  const [fundedDeals, setFundedDeals] = useState<Record<string, FundedDeal>>({});
 
   const loadWallet = () => fetch("/api/wallet").then((r) => r.json()).then(setWallet);
 
@@ -88,6 +90,53 @@ export default function Home() {
           : { role: "agent", text: data.answer ?? "", steps: data.steps },
       ]);
       if (data.steps?.some((s) => s.result?.payment)) loadWallet();
+
+      // Learn from escrows the agent funded in the CHAT: add their real
+      // transactions to the session list and remember the deal per ticket so the
+      // Check tab can show it and scan it at the gate (same as the button flow).
+      const fundedSteps = (data.steps ?? []).filter(
+        (s) => s.tool === "fund_escrow" && (s.result as { ok?: boolean } | undefined)?.ok === true
+      );
+      if (fundedSteps.length > 0) {
+        const newTxs: EscrowTx[] = [];
+        const additions: Record<string, FundedDeal> = {};
+        for (const s of fundedSteps) {
+          const r = (s.result ?? {}) as {
+            ticketId?: string;
+            dealId?: string;
+            runId?: string;
+            links?: FundedDeal["links"];
+          };
+          const ticketId = String((s.args as { ticketId?: string } | undefined)?.ticketId ?? r.ticketId ?? "");
+          for (const l of r.links ?? []) {
+            newTxs.push({
+              kind: l.kind,
+              hash: l.hash,
+              url: l.url,
+              ticketId,
+              dealId: r.dealId ?? "",
+              at: new Date().toISOString(),
+            });
+          }
+          if (ticketId) {
+            additions[ticketId] = {
+              dealId: r.dealId ?? "",
+              runId: r.runId ?? "",
+              status: "Funded",
+              links: r.links ?? [],
+            };
+          }
+        }
+        if (newTxs.length > 0) {
+          setEscrowTxs((prev) => {
+            const seen = new Set(prev.map((t) => t.hash));
+            return [...prev, ...newTxs.filter((t) => !seen.has(t.hash))];
+          });
+        }
+        if (Object.keys(additions).length > 0) {
+          setFundedDeals((prev) => ({ ...prev, ...additions }));
+        }
+      }
       return data;
     } catch {
       const error = "Could not reach the server. Is the dev server still running?";
@@ -169,9 +218,23 @@ export default function Home() {
           </nav>
 
           {tab === "tickets" && <TicketsTab onCheck={runCheck} busyId={check.status === "loading" ? check.id : null} />}
-          {tab === "check" && <CheckTab check={check} onRun={runCheck} />}
+          {tab === "check" && (
+            <CheckTab
+              check={check}
+              onRun={runCheck}
+              onEscrowTx={(txs) => setEscrowTxs((prev) => [...prev, ...txs])}
+              fundedDeal={check.status === "done" ? fundedDeals[check.id] ?? null : null}
+            />
+          )}
           {tab === "wallet" && (
-            <WalletTab wallet={wallet} creating={creating} onCreate={createWallet} onRefresh={loadWallet} />
+            <WalletTab
+              wallet={wallet}
+              creating={creating}
+              onCreate={createWallet}
+              onRefresh={loadWallet}
+              escrowTxs={escrowTxs}
+              onEscrowTx={(txs) => setEscrowTxs((prev) => [...prev, ...txs])}
+            />
           )}
         </main>
 

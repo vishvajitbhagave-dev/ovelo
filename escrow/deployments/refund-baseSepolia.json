@@ -1,0 +1,38 @@
+{
+  "network": "baseSepolia",
+  "chainId": 84532,
+  "note": "Refunds of the 1 test USDC locked in un-scanned escrow deals 2, 4 and 5, sent by the agent (buyer) wallet after their deadlines passed. Public data only.",
+  "refunds": [
+    {
+      "dealId": "2",
+      "txHash": "0xa9cdac8b615b9e7e6509b6cbe9696d36519552b6ad158bc041da627a7370d77d",
+      "block": 47883398,
+      "statusAfter": 3
+    },
+    {
+      "dealId": "4",
+      "txHash": "0xc5694103ed51cfa7e42deab4a7bc5f58d6772c54b7ed5f241ac0056b2ddd93cb",
+      "block": 47883400,
+      "statusAfter": 3
+    },
+    {
+      "dealId": "5",
+      "txHash": "0xe45c99937b2a0f4ffa0ac3362e214cef67d6aef9456c900749cad6c45a78f716",
+      "block": 47883401,
+      "statusAfter": 3
+    }
+  ],
+  "addresses": {
+    "contract": "0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E",
+    "token": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "agent": "0x865b100A911a0eEA2ef8781614EB1737526E7683"
+  },
+  "amountUsdcBaseUnits": "1000000",
+  "balances": {
+    "escrowBefore": "3000000",
+    "escrowAfter": "0",
+    "agentBefore": "14000000",
+    "agentAfter": "17000000"
+  },
+  "ranAt": "2026-10-09T08:54:03.752Z"
+}

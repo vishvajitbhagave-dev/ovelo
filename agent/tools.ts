@@ -9,6 +9,7 @@
  * and save. It shows up in the "Tools" list on the page.
  */
 import { getWalletAddress, getWalletBalance, payAndFetch } from "./wallet";
+import { runIdFor, fundEscrow } from "./escrow";
 import { DEMO_EVENT, DEMO_TICKETS, DEMO_TICKET_IDS, assessTicketRisk, findDemoTicket } from "./tickets";
 
 export type Tool = {
@@ -133,6 +134,93 @@ export const tools: Tool[] = [
       return payAndFetch(
         `${baseUrl}/api/ticket-report?ticketId=${encodeURIComponent(String(ticketId ?? ""))}`
       );
+    },
+  },
+
+  // ─── 7. Ovelo: fund a REAL escrow on Base Sepolia (LOW risk only) ───
+  {
+    name: "fund_escrow",
+    description:
+      "Fund the escrow for ONE ticket on the Base Sepolia test network with test money. " +
+      "Call this at most ONCE per ticket per turn, and only for a LOW-risk ticket (after check_ticket_risk " +
+      "has returned LOW). Do not call it for MEDIUM or HIGH. If it returns ok:true the money is safely in " +
+      "escrow: report that and show the links, and never call it again for this ticket. If it returns ok:false " +
+      "do NOT retry; report the message plainly. MEDIUM can only be funded after the person presses " +
+      "\"Approve and fund escrow\" in the app.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticketId: { type: "string", description: "The demo ticket id, e.g. OV-1001" },
+      },
+      required: ["ticketId"],
+    },
+    run: async ({ ticketId }) => {
+      const id = String(ticketId ?? "").trim();
+
+      // A deterministic run id means a retry reuses the same on-chain ticket,
+      // so the contract refuses a duplicate and no second deal can open.
+      const result = await fundEscrow({ ticketId: id, approved: false, runId: runIdFor(id) });
+
+      const riskLevel = result.risk?.riskLevel ?? null;
+
+      if (result.ok) {
+        const approveTx = result.links.find((l) => l.kind === "approve") ?? null;
+        const fundTx = result.links.find((l) => l.kind === "fund") ?? null;
+        const label = result.dealId ? `Deal ${result.dealId}` : "The deal";
+        return {
+          ok: true,
+          ticketId: id,
+          riskLevel,
+          dealId: result.dealId,
+          runId: result.runId,
+          approveTx,
+          fundTx,
+          links: result.links,
+          message:
+            `Escrow funded for ${id} on Base Sepolia. ${label} is now Funded: the 1 test USDC will be ` +
+            `released to the seller when the ticket is scanned at the demo gate.`,
+          instruction:
+            "Tell the user the escrow is funded and show the transaction link(s). Do NOT call fund_escrow " +
+            "again for this ticket this turn.",
+        };
+      }
+
+      // Refused (risk / guard / already open / error). This must never be retried.
+      const existing = result.existing;
+      const message = existing
+        ? `${result.message} Existing deal ${existing.dealId} is ${existing.status}.`
+        : result.message;
+
+      let instruction: string;
+      switch (result.code) {
+        case "MEDIUM":
+          instruction =
+            "Do not retry. Tell the user this ticket is MEDIUM risk and they must press " +
+            "\"Approve and fund escrow\" in the Check tab themselves before it can be funded.";
+          break;
+        case "HIGH":
+          instruction = "Do not retry. Explain the HIGH-risk reasons and that funding is refused.";
+          break;
+        case "ALREADY_OPEN":
+          instruction =
+            "Do not retry. Tell the user a deal already exists for this ticket and report its id and status.";
+          break;
+        default:
+          instruction = "Do not retry. Report the message to the user plainly.";
+      }
+
+      return {
+        ok: false,
+        ticketId: id,
+        riskLevel,
+        dealId: existing?.dealId ?? "",
+        runId: existing?.runId ?? runIdFor(id),
+        approveTx: null,
+        fundTx: null,
+        links: [],
+        message,
+        instruction,
+      };
     },
   },
 ];

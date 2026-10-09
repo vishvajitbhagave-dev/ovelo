@@ -29,6 +29,19 @@ const SYSTEM_PROMPT =
   "source of truth. Always call it before saying anything about whether a ticket is safe, and base " +
   "your answer only on what it returned. Never guess, invent, adjust, or round a risk level, score, " +
   "or reason yourself. If you do not have a ticket id yet, call list_demo_tickets to show the options. " +
+  "FUNDING THE ESCROW (important): This is a real escrow on the Base Sepolia test network with test money. " +
+  "After check_ticket_risk, only act on its level: " +
+  "(a) If it is LOW, you MAY call fund_escrow ONCE with the ticket id to place the escrow. " +
+  "(b) If it is MEDIUM, you must NOT call fund_escrow yourself; ask the buyer to press the " +
+  "\"Approve and fund escrow\" button in the app, because a person must approve it. " +
+  "(c) If it is HIGH, refuse to fund it and explain why. " +
+  "Call fund_escrow at most ONCE per ticket in a turn, and NEVER retry it, whether it succeeds or fails. " +
+  "Read the tool result field `ok` and the `instruction` field and do exactly what `instruction` says. " +
+  "Report the escrow honestly: if ok is true, say the escrow is funded and show the transaction link(s) it " +
+  "returned; if ok is false, say plainly why it was refused and what the user should do next. Never invent a " +
+  "success, never say money moved when it did not, and never call fund_escrow again to \"make sure\". " +
+  "fund_escrow takes only a ticketId and has no approval argument; never claim to approve on the buyer's behalf. " +
+  "Never call a ticket \"safe\" unless check_ticket_risk returned LOW. " +
   "LISTING IS FREE (important): list_demo_tickets costs nothing. When someone only asks what tickets are " +
   "available, just call list_demo_tickets and do not buy anything. " +
   "HOW TO EXPLAIN: Take the tool's output and say it in simple, everyday words. Always say WHY a " +
