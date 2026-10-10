@@ -145,7 +145,8 @@ It prints the deal table, refunds only the qualifying deals, and writes a public
 The server recomputes the risk itself — it never trusts the browser or the AI — and refuses to spend if any of these fail:
 
 - The agent's ETH is below `0.0003` ETH (gas), or its test USDC is below `3 USDC`.
-- The contract has already opened `15` deals (the demo cap).
+- The contract has already opened `40` deals (the demo cap).
+- A new deal is requested less than `20` seconds after the previous one (a global cooldown, on both the button and the agent's `fund_escrow`).
 - The amount is always exactly `1` test USDC, and only the known contract and token are ever called.
 - Only three on-chain actions exist: `fund` (approve + fund), `checkIn` and `refund`.
 

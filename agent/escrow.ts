@@ -212,10 +212,12 @@ export type FundOutcome =
   | {
       ok: false;
       refused: true;
-      code: "HIGH" | "MEDIUM" | "UNKNOWN_TICKET" | "GUARD" | "ALREADY_OPEN" | "ERROR";
+      code: "HIGH" | "MEDIUM" | "UNKNOWN_TICKET" | "GUARD" | "ALREADY_OPEN" | "COOLDOWN" | "ERROR";
       message: string;
       risk?: TicketRisk;
       existing?: ExistingDeal;
+      retryAfterSeconds?: number;
+      links?: TxLink[];
     };
 
 export type ScanOutcome =
@@ -357,6 +359,42 @@ async function readDealUntil(
     await new Promise((r) => setTimeout(r, 2000));
   }
   return last;
+}
+
+/** Read the agent's current USDC allowance for the escrow contract. */
+async function readAllowance(owner: Address): Promise<bigint> {
+  return (await publicClient.readContract({
+    address: TOKEN,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [owner, CONTRACT],
+  })) as bigint;
+}
+
+/**
+ * Poll the allowance until it is at least `min`. The public RPC is load-balanced,
+ * so one node can briefly lag behind the approve; wait until a node can see it.
+ */
+async function waitForAllowance(owner: Address, min: bigint, attempts = 20, waitMs = 1000): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    if ((await readAllowance(owner).catch(() => 0n)) >= min) return true;
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+  return false;
+}
+
+/** Friendly refusal for a lagging network: no fund tx was sent, nothing was spent. */
+function laggingRefusal(approveHash: string | null): FundOutcome {
+  const links: TxLink[] = approveHash ? [{ kind: "approve", hash: approveHash, url: BASESCAN.tx(approveHash) }] : [];
+  const base =
+    "The test network is being slow right now, so the funding was not sent and nothing was spent. Please try again in a moment.";
+  return {
+    ok: false,
+    refused: true,
+    code: "ERROR",
+    message: links.length ? `${base} (Your approve transaction: ${links[0].url})` : base,
+    links,
+  };
 }
 
 function humanizeRevert(err: unknown): string {
@@ -575,30 +613,108 @@ export async function fundEscrow(input: {
       }
     }
 
-    // ── Approve exactly 1 USDC if the allowance is not already enough ─
-    let approveHash: string | null = null;
-    const allowance = (await publicClient.readContract({
-      address: TOKEN,
-      abi: erc20Abi,
-      functionName: "allowance",
-      args: [account.address, CONTRACT],
-    })) as bigint;
+    // ── Global cooldown: keep NEW deals at least cooldownSeconds apart ─
+    // Runs for both funding paths (button + agent), but only after the
+    // idempotency check above, so a same-key retry still answers "already open".
+    // Funding time = latest deal's deadline minus the deposit period (both this
+    // module and the smoke test fund with a one-hour deadline). Reads only.
+    const block = await publicClient.getBlock();
+    const chainTime = Number(block.timestamp);
+    if (dealCount > 0n) {
+      const lastDeal = await readDeal(dealCount);
+      if (lastDeal) {
+        const fundedAt = lastDeal.deadline - ESCROW.deadlineSeconds;
+        const elapsed = chainTime - fundedAt;
+        if (elapsed < ESCROW.cooldownSeconds) {
+          const retryAfterSeconds = Math.max(1, ESCROW.cooldownSeconds - Math.max(0, elapsed));
+          return {
+            ok: false,
+            refused: true,
+            code: "COOLDOWN",
+            message: "Another deal was just opened. Please try again in a few seconds.",
+            retryAfterSeconds,
+          };
+        }
+      }
+    }
 
-    if (allowance < AMOUNT) {
-      const h = await createWalletClient({ chain: baseSepolia, transport: http(ESCROW.rpcUrl), account }).writeContract({
+    // ── Approve exactly 1 USDC if the allowance is not already enough ─
+    // Re-read the allowance right before approving: a leftover allowance (for
+    // example from a previous attempt that failed at fund) skips the approve.
+    let approveHash: string | null = null;
+    if ((await readAllowance(account.address)) < AMOUNT) {
+      const approveWallet = createWalletClient({ chain: baseSepolia, transport: http(ESCROW.rpcUrl), account });
+      const h = await approveWallet.writeContract({
         address: TOKEN,
         abi: erc20Abi,
         functionName: "approve",
         args: [CONTRACT, AMOUNT],
       });
-      await publicClient.waitForTransactionReceipt({ hash: h });
+      const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: h });
       approveHash = h;
+      if (approveReceipt.status !== "success") {
+        return {
+          ok: false,
+          refused: true,
+          code: "ERROR",
+          message: "The token approval did not go through, so nothing was funded and nothing was spent. Please try again.",
+          links: [{ kind: "approve", hash: approveHash, url: BASESCAN.tx(approveHash) }],
+        };
+      }
+    }
+
+    // The approve (if any) is mined, but the load-balanced RPC may still route
+    // the next call to a node that cannot see the new allowance yet. Wait until
+    // the allowance is visible before simulating or sending the fund.
+    if (!(await waitForAllowance(account.address, AMOUNT))) {
+      return laggingRefusal(approveHash);
     }
 
     // ── Fund the deal ────────────────────────────────────────────────
     const fundWallet = createWalletClient({ chain: baseSepolia, transport: http(ESCROW.rpcUrl), account });
-    const block = await publicClient.getBlock();
     const deadline = block.timestamp + BigInt(ESCROW.deadlineSeconds);
+
+    // Simulate before sending (retrying a few times for a lagging node). Passing
+    // the simulated gas to the send avoids a second estimate that could hit a
+    // node which has not seen the approve yet.
+    let fundGas: bigint | undefined;
+    let simulated = false;
+    for (let attempt = 0; attempt < 5 && !simulated; attempt++) {
+      try {
+        const sim = await publicClient.simulateContract({
+          account,
+          address: CONTRACT,
+          abi: escrowAbi,
+          functionName: "fund",
+          args: [ticketKey, SELLER, AMOUNT, deadline],
+        });
+        fundGas = sim.request.gas;
+        simulated = true;
+      } catch (err) {
+        const msg = humanizeRevert(err);
+        if (/already funded|already sold/i.test(msg)) {
+          const id = await getDealIdForKey(ticketKey).catch(() => 0n);
+          const existing = id !== 0n ? await readDeal(id) : null;
+          return {
+            ok: false,
+            refused: true,
+            code: "ALREADY_OPEN",
+            message: "This ticket already has an open deal.",
+            risk: policy.risk ?? undefined,
+            existing: existing ? { dealId: existing.dealId, runId, status: existing.status } : undefined,
+          };
+        }
+        if (/allowance/i.test(msg)) {
+          // A lagging node cannot see the approve yet; wait, then retry.
+          await waitForAllowance(account.address, AMOUNT, 4, 1000);
+          continue;
+        }
+        return laggingRefusal(approveHash);
+      }
+    }
+    if (!simulated) {
+      return laggingRefusal(approveHash);
+    }
 
     let fundHash: Hex;
     try {
@@ -607,6 +723,7 @@ export async function fundEscrow(input: {
         abi: escrowAbi,
         functionName: "fund",
         args: [ticketKey, SELLER, AMOUNT, deadline],
+        gas: fundGas === undefined ? undefined : (fundGas * 120n) / 100n,
       });
     } catch (err) {
       // The contract refuses a second funding for the same ticket key. Turn that
@@ -624,8 +741,10 @@ export async function fundEscrow(input: {
           existing: existing ? { dealId: existing.dealId, runId, status: existing.status } : undefined,
         };
       }
-      throw err;
+      // No fund tx was mined; report a friendly lag message, not a raw revert.
+      return laggingRefusal(approveHash);
     }
+
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash: fundHash });
 

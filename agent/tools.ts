@@ -205,20 +205,27 @@ export const tools: Tool[] = [
           instruction =
             "Do not retry. Tell the user a deal already exists for this ticket and report its id and status.";
           break;
+        case "COOLDOWN":
+          instruction =
+            `Do not retry. Tell the user to wait about ${result.retryAfterSeconds ?? 20} seconds before opening ` +
+            "a new deal, and do not call fund_escrow again this turn.";
+          break;
         default:
           instruction = "Do not retry. Report the message to the user plainly.";
       }
 
+      const links = result.links ?? [];
       return {
         ok: false,
         ticketId: id,
         riskLevel,
         dealId: existing?.dealId ?? "",
         runId: existing?.runId ?? runIdFor(id),
-        approveTx: null,
-        fundTx: null,
-        links: [],
+        approveTx: links.find((l) => l.kind === "approve") ?? null,
+        fundTx: links.find((l) => l.kind === "fund") ?? null,
+        links,
         message,
+        retryAfterSeconds: result.retryAfterSeconds ?? null,
         instruction,
       };
     },

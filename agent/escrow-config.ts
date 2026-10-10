@@ -28,8 +28,11 @@ export const ESCROW = {
   /** One demo deal is always exactly 1 test USDC (scaled down, see README). */
   demoAmountBaseUnits: "1000000",
   /** Hard cap on how many deals the demo will ever open. */
-  maxTotalDeals: 15,
+  maxTotalDeals: 40,
   /** Safety floor: refuse to spend if the agent is this low. */
+  // Global cooldown between NEW deals, for both funding paths (button + agent).
+  // Funding a new deal within this many seconds of the previous one is refused.
+  cooldownSeconds: 20,
   minAgentEthWei: "300000000000000", // 0.0003 ETH (gas for approve + fund)
   minAgentUsdcBaseUnits: "3000000", // 3 USDC
   /** Check-in window for a funded deal. */

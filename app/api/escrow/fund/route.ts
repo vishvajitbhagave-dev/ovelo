@@ -51,6 +51,8 @@ export async function POST(req: Request) {
         message: result.message,
         risk: result.risk ?? null,
         existing: result.existing ?? null,
+        retryAfterSeconds: result.retryAfterSeconds ?? null,
+        links: result.links ?? [],
       },
       { status: 200 }
     );
