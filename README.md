@@ -1,24 +1,94 @@
+<img src="public/logo.png" alt="Ovelo logo" width="140" />
+
 # Ovelo
 
-An AI agent that helps resale-ticket buyers decide whether a deal looks safe.
+**Ovelo helps you buy resale tickets without getting burned — an AI agent that checks the deal, explains the risk, and holds your money in escrow until the ticket is checked at the gate.**
 
-> **This is a demo with fake data.** Ovelo cannot check real tickets, real sellers, or real event companies. Everything it knows about comes from six made-up demo tickets. See [Honest limits](#honest-limits).
+## What Ovelo solves
 
-## The problem
-
-Buying a resale ticket online is a bit of a gamble. Common ways people get burned:
+Buying a resale ticket online is a gamble. The same few things go wrong again and again:
 
 1. **Copied tickets.** Someone photographs a real ticket and sells the same seat twice. The second buyer turns up at the gate and gets nothing.
 2. **Already-used tickets.** The ticket was already scanned at the door once, and the seller tries to sell it again.
 3. **Fake sellers.** The seller isn't the person the ticket is registered to, the price is wildly over the official resale cap, or the ticket comes from an issuer nobody has ever heard of.
+4. **Paying before the check.** You send the money first and only find out at the gate whether the ticket was ever real.
 
-The signs are usually visible somewhere in the listing. The problem is that most buyers don't know which signs matter.
+The warning signs are usually visible somewhere in the listing — most buyers just don't know which signs matter.
 
-## How it works
+**How Ovelo helps.** You ask the agent about a ticket. It runs fixed, readable rules in code against the ticket's history, returns a risk level (LOW / MEDIUM / HIGH) with plain reasons, and explains them in everyday words. Then:
 
-The important idea: **the risk level comes from fixed rules in code, not from the AI.**
+- **LOW** → Ovelo can fund the deal itself, into a real escrow on the Base Sepolia test network.
+- **MEDIUM** → Ovelo will not spend a cent on its own; a person must press **Approve and fund escrow**.
+- **HIGH** → Ovelo refuses outright and explains why.
 
-The AI is not asked to judge whether a ticket is safe. That job belongs to a plain TypeScript function in [`agent/tickets.ts`](agent/tickets.ts), which adds up points and then buckets the total. This means the same ticket always gets the same answer, and you can read the rules to know exactly why.
+The money sits in the escrow contract — not with the seller — until the ticket is checked at the gate. If it is never checked, the buyer can get the money back after the deadline. **The risk level always comes from code, never from the AI.**
+
+> **This is a demo with fake data.** Ovelo cannot check real tickets, real sellers, or real event companies. Everything it knows about comes from six made-up demo tickets. See [Honest limits](#honest-limits).
+
+## Tech stack
+
+Installed versions (read from `node_modules` at the time of writing; the escrow versions come from `escrow/`).
+
+| Layer | Package | Version |
+| :--- | :--- | :--- |
+| App framework | Next.js | 16.3.8 |
+| UI runtime | React / React DOM | 19.3.0 |
+| Language | TypeScript | 5.9.3 |
+| Styling | Tailwind CSS | 4.3.3 |
+| Styling | `@tailwindcss/postcss` | 4.3.3 |
+| UI components | shadcn CLI (components in `components/ui`) | 4.21.2 |
+| UI components | `@base-ui/react` | 1.8.0 |
+| UI icons | `lucide-react` | 1.52.0 |
+| EVM client | viem | 2.57.3 |
+| AI SDK | `@google/genai` (Google Gen AI SDK) | 2.27.0 |
+| Contracts | Hardhat | 3.18.1 |
+| Contracts | `@openzeppelin/contracts` | 5.6.1 |
+| Contracts | Solidity compiler (`solc`, configured in `escrow/hardhat.config.ts`) | 0.8.31 |
+| Runtime | Node.js (dev machine; project needs ≥ 20) | v24.13.0 |
+| Package manager | npm | 11.6.2 |
+
+## Tools the agent supports
+
+The agent has **7 tools** in total: **5 core tools** and **2 starter demo tools** (`get_weather` and `roll_dice`). Of the 5 core tools, `get_my_wallet` is inherited from the starter kit and the other four are Ovelo-specific.
+
+| Tool | What it does | Cost type | Origin |
+| :--- | :--- | :--- | :--- |
+| `list_demo_tickets` | Lists the six demo tickets with id, event, seat and asking price. | Free | Ovelo core tool |
+| `check_ticket_risk` | Runs the rule-based risk engine on one ticket and returns the level, score, reasons and recommendation. | Free | Ovelo core tool |
+| `get_ticket_history_report` | Buys the paid history report (issuer, face value, ownership timeline, scan status) for one ticket. | x402 paid (0.01 USDC) | Ovelo core tool |
+| `fund_escrow` | Funds a **real** Base Sepolia escrow for one ticket with 1 test USDC — allowed for **LOW** risk only. | On-chain | Ovelo core tool |
+| `get_weather` | Returns the current weather for a city. | x402 paid (0.01 USDC) | Starter demo tool |
+| `get_my_wallet` | Returns the agent wallet address and its Base Sepolia ETH balance. | Free | Core tool (inherited from the starter kit) |
+| `roll_dice` | Rolls a dice with the given number of sides. | Free | Starter demo tool |
+
+The x402 tools **sign** a payment message with the agent's wallet and the API verifies the signature; today **no x402 payment is settled on-chain** (see [Future scope](#future-scope-for-week-2-and-week-3)). Only `fund_escrow` sends real transactions.
+
+## Supported AI models
+
+The model is chosen in `agent/agent.ts` and can be overridden with the `GEMINI_MODEL` environment variable (default: `gemini-flash-latest`).
+
+| Model | Version | Status |
+| :--- | :--- | :--- |
+| `gemini-flash-latest` | alias: resolves to Google's latest release of the Gemini Flash line | Used (starter default) |
+| `gemini-flash-lite-latest` | alias: resolves to Google's latest release of the Gemini Flash-Lite line | Used and tested in this project's demo |
+
+Both are **aliases**, not fixed versions: Google's official docs (`ai.google.dev`) describe them only as "Latest release of Gemini Flash / Flash-Lite" and do not publish a concrete version number for them, so no fixed version can be confirmed here. Other Gemini models are **untested** with Ovelo.
+
+**How to switch:** set `GEMINI_MODEL` in `.env`, for example `GEMINI_MODEL=gemini-flash-lite-latest`, then restart the server.
+
+## Key features
+
+- **Risk rules live in code.** A plain TypeScript function in [`agent/tickets.ts`](agent/tickets.ts) adds up points and buckets the total, so the same ticket always gets the same answer. The AI cannot change a level, score or reason.
+- **HIGH is always refused.** Anything scoring 70 or more is blocked, with the reasons shown and no fund button.
+- **MEDIUM needs a human.** Ovelo never funds a MEDIUM ticket by itself; a person must press **Approve and fund escrow**.
+- **LOW is funded by the agent.** For LOW-risk tickets the agent may place the escrow itself.
+- **Paid history report via x402.** The agent buys extra background (issuer, face value, ownership timeline, scan status) by signing a 0.01 USDC payment message that the API verifies.
+- **Real on-chain escrow on Base Sepolia.** The money is held by [`OveloEscrow`](escrow/contracts/OveloEscrow.sol) at [`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E) (chain id 84532), with test money only.
+- **Demo gate scanner.** A **Scan at gate** button calls `checkIn` from a trusted demo scanner wallet and releases the money to the seller.
+- **A second scan is rejected.** Ovelo simulates the second `checkIn` first, so no transaction is sent and the contract's own reason is shown in plain words.
+- **Refund after the deadline.** If the ticket is never scanned, the buyer can get the 1 test USDC back once the one-hour deadline passes.
+- **Safety guards.** The server recomputes the risk and re-checks every rule before spending (see [Safety guards](#safety-guards-server-side)).
+- **Live deployment.** The app runs as a Next.js app deployable to Vercel (see the live demo link under [Demo videos and links](#demo-videos-and-links)).
 
 ### The rules and their scores
 
@@ -31,9 +101,7 @@ The AI is not asked to judge whether a ticket is safe. That job belongs to a pla
 | Asking price is above the resale cap, up to 2× | +40 |
 | Ticket changed hands less than 10 minutes ago | +25 |
 
-The price rules are mutually exclusive — a ticket gets either +70 or +40, never both. Rules can stack, so one ticket can pick up several at once.
-
-### How a score becomes a level
+The price rules are mutually exclusive — a ticket gets either +70 or +40, never both. Rules can stack.
 
 | Total score | Risk level | Recommendation |
 | :--- | :--- | :--- |
@@ -41,27 +109,7 @@ The price rules are mutually exclusive — a ticket gets either +70 or +40, neve
 | 25 to 69 | **MEDIUM** | ask the buyer to approve first |
 | Under 25 | **LOW** | ok to proceed |
 
-### What the AI actually does
-
-Once the code has produced a level, a score, and a list of reasons, Gemini turns it into a normal, friendly explanation. That's it. Its system prompt tells it to base every answer only on the tool's output, to always say *why*, and to never invent or soften a risk level.
-
-So: **code decides, AI explains.** If you want to change how a ticket is judged, you edit a number in `agent/tickets.ts` — you don't touch the model.
-
-### The tools
-
-| Tool | What it does |
-| :--- | :--- |
-| `list_demo_tickets` | Lists the six demo tickets with their id, seat and asking price. |
-| `check_ticket_risk` | Runs the rules against one ticket id and returns the level, score, reasons and recommendation. |
-| `get_ticket_history_report` | Buys the paid (signed, not on-chain) history report for one ticket. |
-| `fund_escrow` | Funds a **real** Base Sepolia escrow for one ticket — allowed for **LOW** risk only. |
-| `get_weather` | The starter kit's paid weather demo. |
-| `get_my_wallet` | Returns the agent wallet address and its Base Sepolia ETH balance. |
-| `roll_dice` | Rolls a dice. |
-
-If you ask about a ticket id that doesn't exist, the tool says so and lists the valid ids instead of failing.
-
-## The demo tickets
+### The demo tickets
 
 Six fake tickets for the fictional event **Demo Music Night 2026**.
 
@@ -74,93 +122,35 @@ Six fake tickets for the fictional event **Demo Music Night 2026**.
 | **OV-1005** | Floor B · Row 9 · Seat 15 | $170 | Issuer is not verified | **HIGH** (80) |
 | **OV-1006** | Balcony A · Row 3 · Seat 8 | $230 | Changed hands 2 minutes ago, and it's $30 over the $200 cap | **MEDIUM** (65) |
 
-OV-1003 picks up two rules at once, which is why its score (140) is higher than its headline problem. That's intentional — it's the clearest example of several warning signs stacking up.
+If you ask about a ticket id that doesn't exist, the agent says so and lists the valid ids instead of failing.
 
-Try asking the agent *"Show me the tickets"*, then *"Is OV-1006 safe to buy?"*, then *"check OV-9999"* to see the not-found path.
+## Demo videos and links
 
-## What is built vs what is planned
-
-### Built today
-
-1. Six demo tickets and a rule-based risk engine in `agent/tickets.ts`.
-2. The `list_demo_tickets` and `check_ticket_risk` tools.
-3. A system prompt that keeps the AI as an explainer and keeps it honest about the demo.
-4. The starter kit's chat, the Tools panel, the Setup panel, and the agent wallet — all still working.
-5. The starter kit's `get_weather` (a paid demo API), `get_my_wallet`, and `roll_dice` tools.
-6. The paid ticket-history report (x402 pattern: signed, not sent on-chain).
-7. A designed UI with **Tickets / Check / Agent wallet** tabs (see `components/`).
-8. A **real on-chain escrow** on Base Sepolia, with a demo gate scanner (see below).
-
-### Planned — not built yet
-
-Nothing below exists in the code today. It's here so you know where the project is headed.
-
-| Planned | What it would mean |
-| :--- | :--- |
-| **Real gate integration** | Replace the "demo scanner" button with a real venue scan that flips the ticket's status. |
-| **Real (JSON-RPC / wallet) x402 settlement** | Move the signed-only payments onto a settlement layer instead of just verifying the signature. |
-| **Multi-ticket checkout** | Fund and track more than one ticket at a time. |
-
-## On-chain escrow on Base Sepolia
-
-This part is **real**: it signs and sends transactions on the Base Sepolia **test network**, using **test money** only.
-
-- **Contract:** [`OveloEscrow`](escrow/contracts/OveloEscrow.sol) at [`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E) (chain id 84532).
-- **Token:** test USDC at `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (6 decimals).
-- **Scanner:** the contract only lets one trusted address call `checkIn` — the demo scanner.
-- **Seller:** every demo deal pays the same demo seller `0x3c86C6a22564E1515E4628426a3ca6a03C28c04d`.
-
-### How the demo works
-
-1. On the **Check** tab, Ovelo checks a ticket and shows the rule-based risk level.
-2. **LOW** → a **Fund escrow** button (the agent may also call `fund_escrow` from the chat). **MEDIUM** → an **Approve and fund escrow** button, because a person must approve. **HIGH** → blocked, with the reasons and no button.
-3. Funding does two real transactions: `approve` (1 test USDC) then `fund`. The money is now held by the contract, not the seller.
-4. Press **Scan at gate (demo scanner)** to call `checkIn` from the scanner wallet. The contract verifies the caller is the trusted scanner, marks the deal **Released**, and pays the seller exactly 1 test USDC.
-5. Press **Scan again** to see the contract reject a second scan — Ovelo *simulates* first, so no transaction is sent and the contract's own reason is shown in plain words.
-6. If you never scan, the money is not lost: once the deal's one-hour deadline passes, the **Agent wallet** tab shows it under **Open deals** with a **Refund** button, and the buyer can call `refund` to get the 1 test USDC back.
-
-Every run uses a fresh, random `runId`; the on-chain ticket id is `keccak256("<ticketId>:<runId>")`. That keeps the same demo ticket reusable while the contract's "no double sale" protection still applies within a run. The app reads the contract and the token directly (no Hardhat artifacts needed on the host); the public addresses live in [`agent/escrow-config.ts`](agent/escrow-config.ts) and the server-only logic in [`agent/escrow.ts`](agent/escrow.ts).
-
-### The three endings
-
-A funded deal ends in exactly one of three ways:
-
-| Ending | Trigger | On-chain result |
-| --- | --- | --- |
-| **Released** | The trusted scanner calls `checkIn` before the deadline. | The 1 test USDC is paid to the seller. |
-| **Refunded** | The buyer calls `refund` after the deadline passed without a scan. | The 1 test USDC is returned to the buyer (the agent wallet). |
-| **Still open** | Nobody has scanned and the deadline has not passed yet. | The 1 test USDC stays locked in the contract. |
-
-The **Refund** button only appears once a deal is expired, and the server re-checks every rule (Funded, agent is the buyer, deadline passed) before sending anything. You can also run the recovery script from `escrow/` to refund every stuck deal at once:
-
-```bash
-cd escrow
-npm run refund:baseSepolia
+```
+Week 1 (ovelo.v1): Demo-video-link
+Week 2 (ovelo.v2): Demo-video-link
+Week 3 (ovelo.v3): Demo-video-link
 ```
 
-It prints the deal table, refunds only the qualifying deals, and writes a public record to `escrow/deployments/refund-baseSepolia.json`.
+Live demo: https://ovelo-five.vercel.app/
 
-### Safety guards (server-side)
+## Future scope for Week 2 and Week 3
 
-The server recomputes the risk itself — it never trusts the browser or the AI — and refuses to spend if any of these fail:
+**Planned (not built yet):**
 
-- The agent's ETH is below `0.0003` ETH (gas), or its test USDC is below `3 USDC`.
-- The contract has already opened `40` deals (the demo cap).
-- A new deal is requested less than `20` seconds after the previous one (a global cooldown, on both the button and the agent's `fund_escrow`).
-- The amount is always exactly `1` test USDC, and only the known contract and token are ever called.
-- Only three on-chain actions exist: `fund` (approve + fund), `checkIn` and `refund`.
+- **Settle x402 payments on-chain on Base Sepolia.** Today the x402 flows (weather and ticket-history report) only sign and verify a payment message; no x402 payment is submitted on-chain. This would move that onto a real settlement.
+- **Verify the escrow contract on Basescan.** Publish the source for the deployed contract so anyone can read it on the explorer.
+- **Richer gate scanner integration.** Replace the demo **Scan at gate** button with something closer to a real venue check-in.
+- **More demo events.** Add more fictional events and tickets beyond **Demo Music Night 2026**.
 
-Keys (`WALLET_PRIVATE_KEY`, `SCANNER_PRIVATE_KEY`) are used only inside `agent/escrow.ts` on the server. They are never logged, returned to the browser, or included in an API response.
+**Exploratory (clearly *not* planned as a feature, just an idea):**
 
-## Honest limits
+- **Zero-knowledge ideas for private ticket ownership proofs.** Exploring whether a buyer could prove they own a valid ticket without revealing the ticket details. Nothing here is designed, built, or promised.
 
-1. **It only works on fake tickets.** The six demo tickets are made up. Ovelo has no connection to any real ticketing system.
-2. **It cannot verify real tickets or real companies.** It cannot look up a real event, check a real barcode, confirm a real issuer, or find out whether a real seller has been caught scamming before.
-3. **The escrow is testnet-only with a trusted demo scanner.** It runs on Base Sepolia with test money, one shared demo agent wallet, and a scanner we control. The check-in is a button, not a real venue scan. The contract is unaudited and not meant for real funds. Amounts are scaled down: a deal is always 1 test USDC, not the ticket's real price.
-4. **The starter kit's x402 payments are signed but not sent on-chain.** The weather and ticket-report demos sign a payment message with the agent's wallet and the API verifies the signature, but no transaction is submitted for those. (The escrow, by contrast, does send real testnet transactions.)
-5. **The written explanation is still written by the AI.** The level, score and reasons all come from code, but the wording around them comes from Gemini. The UI renders the risk fields directly rather than trusting the prose.
+## Follow Ovelo
 
-Don't use Ovelo to make a real purchase decision.
+- X / Twitter: https://x.com/0velo_
+- Posts about Ovelo tag **@riseinweb3** on X.
 
 ## How to run it
 
@@ -192,29 +182,21 @@ npm run dev
 
 ### Step 4. Open it and create the wallet
 
-Open [http://localhost:3000](http://localhost:3000). The Setup panel on the left walks you through it. Click **Create wallet**.
+Open [http://localhost:3000](http://localhost:3000). The Setup panel on the left walks you through it. Click **Create wallet** to give the agent an escrow wallet, or set `WALLET_PRIVATE_KEY` in `.env` to use one you already have. Use **test wallets only**.
 
-The agent now has its own wallet, which it uses to sign payments for the paid weather demo. It's saved to `.agent-wallet.json`, so it survives restarts.
+### Step 5. Try it
 
-### Step 5. Ask it something
+Try asking the agent *"Show me the tickets"*, then *"Is OV-1006 safe to buy?"*, then *"check OV-9999"* to see the not-found path.
 
-Try:
+### Optional environment variables
 
-1. `Show me the demo tickets` — lists all six.
-2. `Is OV-1003 safe to buy?` — runs the rules and explains why.
-3. `Is OV-1004 safe to buy?` — a HIGH result. The agent should say do not fund.
-
-Click any tool entry above a reply to see exactly what went in and came out. The agent remembers the conversation, so follow-up questions work. Use **Clear** to start over.
-
-### Optional settings
-
-| Variable | Required | Description |
-| :--- | :--- | :--- |
-| `GEMINI_API_KEY` | Yes | Your Gemini API key. |
-| `GEMINI_MODEL` | No | Which Gemini model to use. Defaults to `gemini-flash-latest`. |
-| `WALLET_PRIVATE_KEY` | No | Use a wallet you already have instead of the Create wallet button. The escrow uses this. |
-| `SCANNER_PRIVATE_KEY` | For escrow | The demo scanner key. Without it the "Scan at gate" button cannot send the check-in. |
-| `BASE_SEPOLIA_RPC_URL` | No | Override the escrow RPC. Defaults to the public `https://sepolia.base.org`. |
+| Variable | Used for |
+| :--- | :--- |
+| `GEMINI_API_KEY` | **Required.** Your Gemini API key. |
+| `GEMINI_MODEL` | Optional. Which Gemini model to use. Defaults to `gemini-flash-latest`. |
+| `WALLET_PRIVATE_KEY` | Optional. Use an existing agent wallet instead of the Create wallet button. The escrow uses it. |
+| `SCANNER_PRIVATE_KEY` | For escrow. The demo scanner key. Without it the "Scan at gate" button cannot send the check-in. |
+| `BASE_SEPOLIA_RPC_URL` | Optional. Override the escrow RPC. Defaults to the public `https://sepolia.base.org`. |
 
 Use **test wallets only** for `WALLET_PRIVATE_KEY` and `SCANNER_PRIVATE_KEY`. Never put a wallet with real money here.
 
@@ -222,23 +204,61 @@ Use **test wallets only** for `WALLET_PRIVATE_KEY` and `SCANNER_PRIVATE_KEY`. Ne
 
 - Set the variables above in the Vercel project's environment variables. The Create wallet button writes to disk, which is read-only on Vercel, so use `WALLET_PRIVATE_KEY` (and `SCANNER_PRIVATE_KEY`) there.
 - The escrow routes (`/api/escrow/fund`, `/api/escrow/scan`, `/api/escrow/refund`) wait for one or two transaction receipts, so they are the slow calls. They set `maxDuration = 60` (seconds). On Vercel's Hobby plan functions are capped at 10 seconds, so **funding may time out there** — raise the limit on a paid plan or point `BASE_SEPOLIA_RPC_URL` at a faster RPC. The read-only routes (`/api/escrow/deal`, `/api/escrow/status`, `/api/escrow/open-deals`) return immediately.
-- Reads can be slightly stale on the load-balanced public RPC right after a write; the app polls reads until they match the expected on-chain result.
+- Reads can be slightly stale on the load-balanced public RPC right after a write; the app polls reads until they match the expected on-chain result, and waits for the allowance to be visible before funding.
 
+## How a deal works (the three endings)
 
-## Tech stack
+The escrow is **real**, and runs on the Base Sepolia **test network** with **test money** only.
 
-| Tool | Used for |
-| :--- | :--- |
-| [Next.js](https://nextjs.org) | The app and its API routes. |
-| [Google Gen AI SDK](https://www.npmjs.com/package/@google/genai) | Gemini, including function calling. |
-| [viem](https://viem.sh) | Wallet creation, message signing, and reading Base Sepolia. |
-| x402 payment pattern | The sign-a-payment-to-unlock-an-API flow, demoed by the paid weather tool. |
-| Base Sepolia testnet | The test network the wallet points at, and the network the escrow contract runs on. |
+- **Contract:** [`OveloEscrow`](escrow/contracts/OveloEscrow.sol) at `0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E` (chain id 84532).
+- **Token:** test USDC at `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (6 decimals).
+- **Scanner:** the contract only lets one trusted address call `checkIn` — the demo scanner.
+- **Seller:** every demo deal pays the same demo seller `0x3c86C6a22564E1515E4628426a3ca6a03C28c04d`.
 
-## Credits
+The flow:
 
-Built on the **Agentmaxxing starter kit**, which supplied the agent loop, the tool system, the wallet, and the paid weather demo. Ovelo adds the ticket data, the risk rules, and the two tools on top.
+1. On the **Check** tab, Ovelo checks a ticket and shows the rule-based risk level.
+2. **LOW** → a **Fund escrow** button (the agent may also call `fund_escrow` from the chat). **MEDIUM** → an **Approve and fund escrow** button, because a person must approve. **HIGH** → blocked, with the reasons and no button.
+3. Funding does two real transactions: `approve` (1 test USDC) then `fund`. The money is now held by the contract, not the seller.
+4. Press **Scan at gate (demo scanner)** to call `checkIn` from the scanner wallet. The contract verifies the caller is the trusted scanner, marks the deal **Released**, and pays the seller exactly 1 test USDC.
+5. Press **Scan again** to see the contract reject a second scan — Ovelo *simulates* first, so no transaction is sent and the contract's own reason is shown in plain words.
+6. If you never scan, the money is not lost.
 
-## License
+A funded deal ends in exactly one of three ways:
 
-MIT
+| Ending | Trigger | On-chain result |
+| --- | --- | --- |
+| **Released** | The trusted scanner calls `checkIn` before the deadline. | The 1 test USDC is paid to the seller. |
+| **Refunded** | The buyer calls `refund` after the deadline passed without a scan. | The 1 test USDC is returned to the buyer (the agent wallet). |
+| **Still open** | Nobody has scanned and the deadline has not passed yet. | The 1 test USDC stays locked in the contract. |
+
+The **Refund** button only appears once a deal is expired, and the server re-checks every rule (Funded, agent is the buyer, deadline passed) before sending anything. You can also run the recovery script from `escrow/` to refund every stuck deal at once:
+
+```bash
+cd escrow
+npm run refund:baseSepolia
+```
+
+It prints the deal table, refunds only the qualifying deals, and writes a public record to `escrow/deployments/refund-baseSepolia.json`.
+
+## Safety guards (server-side)
+
+The server recomputes the risk itself — it never trusts the browser or the AI — and refuses to spend if any of these fail:
+
+- The agent's ETH is below `0.0003` ETH (gas), or its test USDC is below `3 USDC`.
+- The contract has already opened `40` deals (the demo cap).
+- A new deal is requested less than `20` seconds after the previous one (a global cooldown, on both the button and the agent's `fund_escrow`).
+- The amount is always exactly `1` test USDC, and only the known contract and token are ever called.
+- Only three on-chain actions exist: `fund` (approve + fund), `checkIn` and `refund`.
+
+Keys (`WALLET_PRIVATE_KEY`, `SCANNER_PRIVATE_KEY`) are used only inside `agent/escrow.ts` on the server. They are never logged, returned to the browser, or included in an API response.
+
+## Honest limits
+
+1. **It only works on fake tickets.** The six demo tickets are made up. Ovelo has no connection to any real ticketing system.
+2. **It cannot verify real tickets or real companies.** It cannot look up a real event, check a real barcode, confirm a real issuer, or find out whether a real seller has been caught scamming before.
+3. **The escrow is testnet-only with a trusted demo scanner.** It runs on Base Sepolia with test money, one shared demo agent wallet, and a scanner we control. The check-in is a button, not a real venue scan. The contract is unaudited and not meant for real funds. Amounts are scaled down: a deal is always 1 test USDC, not the ticket's real price.
+4. **The x402 payments are signed but not sent on-chain.** The weather and ticket-report demos sign a payment message with the agent's wallet and the API verifies the signature, but no transaction is submitted for those. (The escrow, by contrast, does send real testnet transactions.)
+5. **The written explanation is still written by the AI.** The level, score and reasons all come from code, but the wording around them comes from Gemini. The UI renders the risk fields directly rather than trusting the prose.
+
+Don't use Ovelo to make a real purchase decision.
