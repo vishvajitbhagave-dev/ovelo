@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -239,7 +240,7 @@ export default function Home() {
         </main>
 
         {/* ── Chat, side panel on desktop ── */}
-        <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] border-l bg-card lg:block">
+        <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-hidden border-l bg-card lg:block">
           <ChatPanel {...chatProps} />
         </aside>
       </div>
@@ -255,7 +256,7 @@ export default function Home() {
       {chatOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-foreground/30" onClick={() => setChatOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 h-[75vh] animate-in rounded-t-3xl bg-card slide-in-from-bottom">
+          <div className="absolute inset-x-0 bottom-0 h-[75vh] animate-in overflow-hidden rounded-t-3xl bg-card pb-[env(safe-area-inset-bottom)] slide-in-from-bottom">
             <button
               onClick={() => setChatOpen(false)}
               aria-label="Close chat"
@@ -316,8 +317,8 @@ function ChatPanel(props: ChatPanelProps) {
   }, [messages, thinking]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-2 border-b px-5 py-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-5 py-4">
         <div>
           <h2 className="font-heading text-lg font-bold">Ask Ovelo</h2>
           <p className="text-xs text-muted-foreground">Your ticket safety helper</p>
@@ -335,7 +336,7 @@ function ChatPanel(props: ChatPanelProps) {
 
       {/* Setup: only when something is actually missing */}
       {(!ready || needsWallet) && (
-        <div className="flex flex-col gap-3 border-b bg-muted/40 px-5 py-4 text-sm">
+        <div className="flex shrink-0 flex-col gap-3 border-b bg-muted/40 px-5 py-4 text-sm">
           {!ready && status && (
             <p className="text-muted-foreground">
               Add your Gemini API key to <code className="rounded bg-muted px-1">.env</code> as{" "}
@@ -364,23 +365,20 @@ function ChatPanel(props: ChatPanelProps) {
 
       {/* Tools */}
       {status?.tools?.length ? (
-        <Collapsible className="border-b">
-          <CollapsibleTrigger className="flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold hover:bg-muted/60">
+        <Collapsible className="shrink-0 border-b">
+          <CollapsibleTrigger className="group flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold hover:bg-muted/60">
             <ChevronRight className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
             Tools <span className="text-muted-foreground">({status.tools.length})</span>
           </CollapsibleTrigger>
-          <CollapsibleContent className="flex flex-col gap-3 px-5 pb-4">
-            {status.tools.map((t) => (
-              <div key={t.name}>
-                <p className="font-mono text-xs">
-                  <span className="text-primary">&gt;</span> {t.name}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{t.description}</p>
-              </div>
-            ))}
-            <p className="border-t pt-3 text-xs text-muted-foreground">
-              Add your own in <code className="rounded bg-muted px-1">agent/tools.ts</code>.
-            </p>
+          <CollapsibleContent className="max-h-[45vh] overflow-y-auto border-t">
+            <div className="flex flex-col gap-2 px-5 py-4">
+              {status.tools.map((t) => (
+                <ToolInfo key={t.name} name={t.name} description={t.description} />
+              ))}
+              <p className="border-t pt-3 text-xs text-muted-foreground">
+                Add your own in <code className="rounded bg-muted px-1">agent/tools.ts</code>.
+              </p>
+            </div>
           </CollapsibleContent>
         </Collapsible>
       ) : null}
@@ -415,7 +413,7 @@ function ChatPanel(props: ChatPanelProps) {
 
           {messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="max-w-[85%] self-end rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">
+              <div key={i} className="max-w-[85%] self-end rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm font-medium break-words text-primary-foreground [overflow-wrap:anywhere]">
                 {m.text}
               </div>
             ) : (
@@ -428,12 +426,18 @@ function ChatPanel(props: ChatPanelProps) {
                 ))}
                 <div
                   className={cn(
-                    "max-w-full rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm whitespace-pre-wrap",
+                    "max-w-full min-w-0 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm [overflow-wrap:anywhere]",
                     m.error ? "bg-high-soft text-high" : "bg-muted"
                   )}
                 >
-                  {m.error && <CircleAlert className="mr-1 inline size-4" />}
-                  {m.text}
+                  {m.error ? (
+                    <>
+                      <CircleAlert className="mr-1 inline size-4" />
+                      {m.text}
+                    </>
+                  ) : (
+                    <Markdown text={m.text} />
+                  )}
                 </div>
               </div>
             )
@@ -449,7 +453,7 @@ function ChatPanel(props: ChatPanelProps) {
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t p-4">
+      <div className="shrink-0 border-t p-4">
         <form
           className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2"
           onSubmit={(e) => {
@@ -503,6 +507,47 @@ function Json({ label, value }: { label: string; value: unknown }) {
     <div>
       <p className="mb-1 text-muted-foreground uppercase">{label}</p>
       <pre className="overflow-x-auto rounded-lg bg-muted p-2">{JSON.stringify(value, null, 2)}</pre>
+    </div>
+  );
+}
+
+/* ── One row in the Tools list: name + cost badge + 2-line clamp with "more" ── */
+function toolBadge(name: string): { label: string; variant: "secondary" | "default"; className: string } {
+  if (name === "fund_escrow") {
+    return { label: "on-chain", variant: "default", className: "" };
+  }
+  if (name === "get_weather" || name === "get_ticket_history_report") {
+    return { label: "x402 paid", variant: "default", className: "bg-blue text-white" };
+  }
+  return { label: "free", variant: "secondary", className: "" };
+}
+
+function ToolInfo({ name, description }: { name: string; description: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const badge = toolBadge(name);
+  const canClamp = description.length > 90;
+  const clamped = canClamp && !expanded;
+
+  return (
+    <div className="rounded-xl border bg-card px-3 py-2">
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 truncate font-mono text-xs">
+          <span className="text-primary">&gt;</span> {name}
+        </p>
+        <Badge variant={badge.variant} className={cn("shrink-0", badge.className)}>
+          {badge.label}
+        </Badge>
+      </div>
+      <p className={cn("mt-1 text-xs text-muted-foreground", clamped && "line-clamp-2")}>{description}</p>
+      {canClamp && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 text-xs font-semibold text-primary hover:underline"
+        >
+          {expanded ? "less" : "more"}
+        </button>
+      )}
     </div>
   );
 }

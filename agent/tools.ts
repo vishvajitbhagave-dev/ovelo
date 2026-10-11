@@ -9,7 +9,7 @@
  * and save. It shows up in the "Tools" list on the page.
  */
 import { getWalletAddress, getWalletBalance, payAndFetch } from "./wallet";
-import { runIdFor, fundEscrow } from "./escrow";
+import { runIdFor, fundEscrow, readDeal, listOpenDeals, readChainTime } from "./escrow";
 import { DEMO_EVENT, DEMO_TICKETS, DEMO_TICKET_IDS, assessTicketRisk, findDemoTicket } from "./tickets";
 
 export type Tool = {
@@ -20,6 +20,18 @@ export type Tool = {
   /** The code that runs when the agent calls this tool. */
   run: (args: any, ctx: { baseUrl: string }) => Promise<unknown>;
 };
+
+/** Turns a number of seconds into a short label like "2d 3h", "45m" or "expired". */
+function timeLeftLabel(seconds: number): string {
+  if (seconds <= 0) return "expired";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${seconds}s`;
+}
 
 export const tools: Tool[] = [
   // ─── 1. A paid API: the agent's wallet signs a payment to unlock it ───
@@ -227,6 +239,185 @@ export const tools: Tool[] = [
         message,
         retryAfterSeconds: result.retryAfterSeconds ?? null,
         instruction,
+      };
+    },
+  },
+
+  // ─── 8. Ovelo: compare several demo tickets at once (free, read-only) ───
+  {
+    name: "compare_tickets",
+    description:
+      "Compare the resale risk of TWO to SIX demo tickets at once and rank them from safest to riskiest. " +
+      "Pass the ids in `ticketIds`, e.g. [\"OV-1001\", \"OV-1003\"]. Use this when someone wants to know which " +
+      "of several tickets is safest. It is FREE and moves no money. The risk comes only from the same rule " +
+      "engine as check_ticket_risk; a comparison never funds anything. " +
+      "DEMO ONLY: these are fake tickets and they cannot verify anything real.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticketIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Two to six demo ticket ids, e.g. [\"OV-1001\", \"OV-1003\"]",
+        },
+      },
+      required: ["ticketIds"],
+    },
+    run: async ({ ticketIds }) => {
+      // Accept a real array, or a comma-separated string if the model sends one.
+      const raw: unknown[] = Array.isArray(ticketIds) ? ticketIds : String(ticketIds ?? "").split(",");
+
+      const ids: string[] = [];
+      for (const entry of raw) {
+        const id = String(entry ?? "").trim();
+        if (id && !ids.includes(id)) ids.push(id);
+      }
+
+      if (ids.length < 2) {
+        return {
+          ok: false,
+          error: "Give me at least two ticket ids to compare (2 to 6).",
+          validTicketIds: DEMO_TICKET_IDS,
+        };
+      }
+      if (ids.length > 6) {
+        return {
+          ok: false,
+          error: "I can compare at most six tickets at once.",
+          validTicketIds: DEMO_TICKET_IDS,
+        };
+      }
+
+      const ranking: {
+        ticketId: string;
+        riskLevel: string;
+        score: number;
+        reasons: string[];
+        recommendation: string;
+      }[] = [];
+      const notFound: string[] = [];
+
+      for (const id of ids) {
+        const ticket = findDemoTicket(id);
+        if (!ticket) {
+          notFound.push(id);
+          continue;
+        }
+        const risk = assessTicketRisk(ticket);
+        ranking.push({
+          ticketId: risk.ticketId,
+          riskLevel: risk.riskLevel,
+          score: risk.score,
+          reasons: risk.reasons,
+          recommendation: risk.recommendation,
+        });
+      }
+
+      // Safest first: the lowest score wins, ties broken by ticket id.
+      ranking.sort((a, b) => a.score - b.score || a.ticketId.localeCompare(b.ticketId));
+
+      return {
+        ok: true,
+        demoOnly: true,
+        compared: ranking.length,
+        safestTicketId: ranking[0]?.ticketId ?? null,
+        ranking,
+        notFound,
+        validTicketIds: DEMO_TICKET_IDS,
+      };
+    },
+  },
+
+  // ─── 9. Ovelo: read-only escrow deal status (free, never sends a transaction) ───
+  {
+    name: "get_deal_status",
+    description:
+      "Read the status of an escrow deal on Base Sepolia. Pass a `dealId` to check ONE deal and get its status " +
+      "(Funded, Released or Refunded), amount in test USDC, buyer, seller, deadline, time left and whether it can " +
+      "be refunded now. Leave `dealId` out to list the agent's own open deals, or to say there are none. " +
+      "This is a FREE read-only chain read and never moves money. Use it for any question about a deal or open deals.",
+    parameters: {
+      type: "object",
+      properties: {
+        dealId: {
+          type: "string",
+          description: "Optional. The escrow deal id, e.g. 3. Leave it out to list the agent's own open deals.",
+        },
+      },
+    },
+    run: async ({ dealId }) => {
+      const raw = dealId === undefined || dealId === null ? "" : String(dealId).trim();
+
+      // No id: list this agent's open (Funded, not yet settled) deals.
+      if (raw === "") {
+        const { deals, chainTime } = await listOpenDeals();
+        if (deals.length === 0) {
+          return {
+            ok: true,
+            openDeals: 0,
+            deals: [],
+            message: "There are no open deals right now. Nothing is funded and waiting.",
+          };
+        }
+        return {
+          ok: true,
+          openDeals: deals.length,
+          deals: deals.map((d) => ({
+            dealId: d.dealId,
+            status: d.status,
+            amountUsdc: d.amountUsdc,
+            buyer: d.buyer,
+            seller: d.seller,
+            deadline: d.deadline,
+            timeLeftSeconds: Math.max(0, d.deadline - chainTime),
+            timeLeft: timeLeftLabel(d.deadline - chainTime),
+            expired: d.expired,
+            canRefundNow: d.expired,
+          })),
+          message: `There ${deals.length === 1 ? "is" : "are"} ${deals.length} open deal${
+            deals.length === 1 ? "" : "s"
+          }.`,
+        };
+      }
+
+      let id: bigint;
+      try {
+        id = BigInt(raw);
+      } catch {
+        return { ok: false, found: false, message: `"${raw}" is not a valid deal id.` };
+      }
+
+      // Load-balanced RPC: fall back to a friendly "not found yet" instead of throwing.
+      const deal = await readDeal(id).catch(() => null);
+      if (!deal) {
+        return {
+          ok: true,
+          found: false,
+          dealId: id.toString(),
+          message:
+            `I could not find deal ${id.toString()} yet. The chain read may be a moment behind, ` +
+            "or that deal does not exist.",
+        };
+      }
+
+      const chainTime = await readChainTime().catch(() => Math.floor(Date.now() / 1000));
+      const agentAddress = (getWalletAddress() ?? "").toLowerCase();
+      const canRefundNow =
+        deal.status === "Funded" && deal.buyer.toLowerCase() === agentAddress && chainTime > deal.deadline;
+
+      return {
+        ok: true,
+        found: true,
+        dealId: deal.dealId,
+        status: deal.status,
+        amountUsdc: deal.amountUsdc,
+        buyer: deal.buyer,
+        seller: deal.seller,
+        deadline: deal.deadline,
+        timeLeftSeconds: Math.max(0, deal.deadline - chainTime),
+        timeLeft: timeLeftLabel(deal.deadline - chainTime),
+        expired: chainTime > deal.deadline,
+        canRefundNow,
       };
     },
   },

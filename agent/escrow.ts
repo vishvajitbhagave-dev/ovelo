@@ -438,6 +438,15 @@ export async function getEscrowStatus(): Promise<EscrowStatus> {
   return base;
 }
 
+/**
+ * Current chain time in unix seconds. Read-only; used to show a deal's time
+ * left. Kept separate from listOpenDeals so a single-deal read stays cheap.
+ */
+export async function readChainTime(): Promise<number> {
+  const block = await publicClient.getBlock();
+  return Number(block.timestamp);
+}
+
 export type OpenDeal = {
   dealId: string;
   status: DealStatus;

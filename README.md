@@ -49,7 +49,7 @@ Installed versions (read from `node_modules` at the time of writing; the escrow 
 
 ## Tools the agent supports
 
-The agent has **7 tools** in total: **5 core tools** and **2 starter demo tools** (`get_weather` and `roll_dice`). Of the 5 core tools, `get_my_wallet` is inherited from the starter kit and the other four are Ovelo-specific.
+The agent has **9 tools** in total: **7 core tools** and **2 starter demo tools** (`get_weather` and `roll_dice`). Of the 7 core tools, `get_my_wallet` is inherited from the starter kit; the other six are Ovelo-specific: `list_demo_tickets`, `check_ticket_risk`, `get_ticket_history_report`, `fund_escrow`, `compare_tickets` and `get_deal_status`.
 
 | Tool | What it does | Cost type | Origin |
 | :--- | :--- | :--- | :--- |
@@ -57,6 +57,8 @@ The agent has **7 tools** in total: **5 core tools** and **2 starter demo tools*
 | `check_ticket_risk` | Runs the rule-based risk engine on one ticket and returns the level, score, reasons and recommendation. | Free | Ovelo core tool |
 | `get_ticket_history_report` | Buys the paid history report (issuer, face value, ownership timeline, scan status) for one ticket. | x402 paid (0.01 USDC) | Ovelo core tool |
 | `fund_escrow` | Funds a **real** Base Sepolia escrow for one ticket with 1 test USDC — allowed for **LOW** risk only. | On-chain | Ovelo core tool |
+| `compare_tickets` | Compares two to six demo tickets at once and ranks them from safest to riskiest, with the safest ticket id. | Free | Ovelo core tool |
+| `get_deal_status` | Reads one escrow deal's status (Funded, Released or Refunded) with amount, parties, deadline and refundability, or lists the agent's open deals. Read-only. | Free (on-chain read) | Ovelo core tool |
 | `get_weather` | Returns the current weather for a city. | x402 paid (0.01 USDC) | Starter demo tool |
 | `get_my_wallet` | Returns the agent wallet address and its Base Sepolia ETH balance. | Free | Core tool (inherited from the starter kit) |
 | `roll_dice` | Rolls a dice with the given number of sides. | Free | Starter demo tool |
