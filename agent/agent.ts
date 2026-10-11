@@ -8,8 +8,10 @@
  */
 import { GoogleGenAI, type Content, type Part } from "@google/genai";
 import { tools } from "./tools";
+import { resolveModel } from "./models";
 
-export const MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+/** The default model (env value when allowlisted, otherwise gemini-flash-lite-latest). */
+export const MODEL = resolveModel().id;
 const MAX_STEPS = 5;
 
 const SYSTEM_PROMPT =
@@ -69,7 +71,8 @@ const SYSTEM_PROMPT =
 export type ChatMessage = { role: "user" | "agent"; text: string };
 export type Step = { tool: string; args: unknown; result: unknown; error?: boolean };
 
-export async function runAgent(history: ChatMessage[], ctx: { baseUrl: string }) {
+export async function runAgent(history: ChatMessage[], ctx: { baseUrl: string }, options?: { model?: string }) {
+  const model = resolveModel(options?.model).id;
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const contents: Content[] = history.map((m) => ({
     role: m.role === "user" ? "user" : "model",
@@ -79,7 +82,7 @@ export async function runAgent(history: ChatMessage[], ctx: { baseUrl: string })
 
   for (let i = 0; i < MAX_STEPS; i++) {
     const response = await ai.models.generateContent({
-      model: MODEL,
+      model,
       contents,
       config: {
         systemInstruction: SYSTEM_PROMPT,
@@ -96,7 +99,7 @@ export async function runAgent(history: ChatMessage[], ctx: { baseUrl: string })
     });
 
     const calls = response.functionCalls ?? [];
-    if (calls.length === 0) return { answer: response.text ?? "", steps };
+    if (calls.length === 0) return { answer: response.text ?? "", steps, model };
 
     // Keep Gemini's turn in the history, then run every tool it asked for.
     contents.push(response.candidates![0].content!);
@@ -120,5 +123,5 @@ export async function runAgent(history: ChatMessage[], ctx: { baseUrl: string })
     contents.push({ role: "user", parts: results });
   }
 
-  return { answer: "I hit my step limit. Try a simpler question.", steps };
+  return { answer: "I hit my step limit. Try a simpler question.", steps, model };
 }

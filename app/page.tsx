@@ -23,9 +23,16 @@ import { CheckTab, type CheckState, type EscrowTx, type FundedDeal, type Step } 
 import { WalletTab, type WalletInfo } from "@/components/wallet-tab";
 import { cn } from "@/lib/utils";
 
-type Message = { role: "user" | "agent"; text: string; steps?: Step[]; error?: boolean };
-type Status = { hasApiKey: boolean; model: string; tools: { name: string; description: string }[] };
-type AgentResponse = { answer?: string; steps?: Step[]; error?: string };
+type Message = { role: "user" | "agent"; text: string; steps?: Step[]; error?: boolean; model?: string };
+type ModelOption = { id: string; name: string; note: string };
+type Status = {
+  hasApiKey: boolean;
+  model: string;
+  defaultModel?: string;
+  models?: ModelOption[];
+  tools: { name: string; description: string }[];
+};
+type AgentResponse = { answer?: string; steps?: Step[]; error?: string; model?: string };
 type Tab = "tickets" | "check" | "wallet";
 
 const TABS: { id: Tab; label: string }[] = [
@@ -46,6 +53,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("tickets");
   const [check, setCheck] = useState<CheckState>({ status: "idle" });
   const [chatOpen, setChatOpen] = useState(false);
+  const [model, setModel] = useState("");
   const [escrowTxs, setEscrowTxs] = useState<EscrowTx[]>([]);
   const [fundedDeals, setFundedDeals] = useState<Record<string, FundedDeal>>({});
 
@@ -81,14 +89,17 @@ export default function Home() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history.filter((m) => !m.error).map(({ role, text }) => ({ role, text })) }),
+        body: JSON.stringify({
+          messages: history.filter((m) => !m.error).map(({ role, text }) => ({ role, text })),
+          model: model || undefined,
+        }),
       });
       const data: AgentResponse = await res.json();
       setMessages((m) => [
         ...m,
         data.error
           ? { role: "agent", text: data.error, error: true }
-          : { role: "agent", text: data.answer ?? "", steps: data.steps },
+          : { role: "agent", text: data.answer ?? "", steps: data.steps, model: data.model },
       ]);
       if (data.steps?.some((s) => s.result?.payment)) loadWallet();
 
@@ -179,6 +190,10 @@ export default function Home() {
     thinking,
     input,
     busy,
+    models: status?.models ?? [],
+    model,
+    defaultModel: status?.defaultModel ?? status?.model ?? "",
+    setModel,
     setInput,
     send,
     createWallet,
@@ -301,6 +316,10 @@ type ChatPanelProps = {
   thinking: boolean;
   input: string;
   busy: boolean;
+  models: ModelOption[];
+  model: string;
+  defaultModel: string;
+  setModel: (v: string) => void;
   setInput: (v: string) => void;
   send: (text: string) => Promise<void>;
   createWallet: () => void;
@@ -308,7 +327,7 @@ type ChatPanelProps = {
 };
 
 function ChatPanel(props: ChatPanelProps) {
-  const { status, ready, wallet, creating, messages, thinking, input, busy, setInput, send, createWallet, clear } = props;
+  const { status, ready, wallet, creating, messages, thinking, input, busy, models, model, defaultModel, setModel, setInput, send, createWallet, clear } = props;
   const needsWallet = Boolean(status) && ready && wallet !== null && !wallet.address;
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -318,10 +337,11 @@ function ChatPanel(props: ChatPanelProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-5 py-4">
-        <div>
+      <div className="flex shrink-0 items-start justify-between gap-2 border-b px-5 py-4">
+        <div className="min-w-0">
           <h2 className="font-heading text-lg font-bold">Ask Ovelo</h2>
           <p className="text-xs text-muted-foreground">Your ticket safety helper</p>
+          <ModelPicker models={models} value={model || defaultModel} onChange={setModel} disabled={!models.length} />
         </div>
         <Button
           variant="ghost"
@@ -329,6 +349,7 @@ function ChatPanel(props: ChatPanelProps) {
           onClick={clear}
           disabled={messages.length === 0 || busy}
           aria-label="Clear chat"
+          className="shrink-0"
         >
           <RotateCcw /> Clear
         </Button>
@@ -439,6 +460,9 @@ function ChatPanel(props: ChatPanelProps) {
                     <Markdown text={m.text} />
                   )}
                 </div>
+                {m.model && (
+                  <p className="px-1 font-mono text-[10px] text-muted-foreground">{m.model}</p>
+                )}
               </div>
             )
           )}
@@ -479,6 +503,40 @@ function ChatPanel(props: ChatPanelProps) {
         </form>
       </div>
     </div>
+  );
+}
+
+/* ── Model switcher: picks one of the server's allowlisted models ── */
+function ModelPicker({
+  models,
+  value,
+  onChange,
+  disabled,
+}: {
+  models: ModelOption[];
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  if (!models.length) return null;
+  const current = models.find((m) => m.id === value) ?? models[0];
+  return (
+    <label className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground" title={current.note}>
+      <span className="shrink-0">Model</span>
+      <select
+        value={current.id}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        aria-label="Choose a model"
+        className="max-w-[11rem] truncate rounded-lg border bg-background px-2 py-1 text-xs font-medium text-foreground disabled:opacity-60"
+      >
+        {models.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

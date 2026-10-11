@@ -67,16 +67,19 @@ The x402 tools **sign** a payment message with the agent's wallet and the API ve
 
 ## Supported AI models
 
-The model is chosen in `agent/agent.ts` and can be overridden with the `GEMINI_MODEL` environment variable (default: `gemini-flash-latest`).
+Ovelo only runs a fixed, **server-side allowlist** of Gemini models. The server rejects any model name that is not on the list, so an arbitrary model string can never be sent from the browser.
 
-| Model | Version | Status |
-| :--- | :--- | :--- |
-| `gemini-flash-latest` | alias: resolves to Google's latest release of the Gemini Flash line | Used (starter default) |
-| `gemini-flash-lite-latest` | alias: resolves to Google's latest release of the Gemini Flash-Lite line | Used and tested in this project's demo |
+**How to switch:** open the chat panel and use the **Model** dropdown. Your choice applies to the following messages, stays when you press **Clear**, and resets to the default when you refresh the page.
 
-Both are **aliases**, not fixed versions: Google's official docs (`ai.google.dev`) describe them only as "Latest release of Gemini Flash / Flash-Lite" and do not publish a concrete version number for them, so no fixed version can be confirmed here. Other Gemini models are **untested** with Ovelo.
+| Model ID | Official version | Notes | Default |
+| :--- | :--- | :--- | :--- |
+| `gemini-flash-lite-latest` | Alias — Google publishes no fixed version; `-latest` always points to the newest release of the Flash-Lite line. | The model used in this project's demo. | ✅ Default |
+| `gemini-3.5-flash-lite` | Stable (GA), released July 21, 2026. | Fast, low-cost Flash-Lite. | |
+| `gemini-3.6-flash` | Stable (GA), released July 21, 2026. | Stronger agentic and tool-calling Flash. | |
 
-**How to switch:** set `GEMINI_MODEL` in `.env`, for example `GEMINI_MODEL=gemini-flash-lite-latest`, then restart the server.
+All three support function calling and were tested with Ovelo's tool calling (a `roll_dice` function call). `gemini-3.8-flash` supports the API but returned a transient `503` during testing, so it is **not** on the allowlist. Any model not listed here is **untested** with Ovelo.
+
+**Default:** the `GEMINI_MODEL` value in `.env` when it names a model on the list; otherwise `gemini-flash-lite-latest`. The allowlist lives in `agent/models.ts`.
 
 ## Key features
 
@@ -195,7 +198,7 @@ Try asking the agent *"Show me the tickets"*, then *"Is OV-1006 safe to buy?"*, 
 | Variable | Used for |
 | :--- | :--- |
 | `GEMINI_API_KEY` | **Required.** Your Gemini API key. |
-| `GEMINI_MODEL` | Optional. Which Gemini model to use. Defaults to `gemini-flash-latest`. |
+| `GEMINI_MODEL` | Optional. Sets the default Gemini model on startup; only used if it names a model on the allowlist (see [Supported AI models](#supported-ai-models)). Otherwise the default is `gemini-flash-lite-latest`. |
 | `WALLET_PRIVATE_KEY` | Optional. Use an existing agent wallet instead of the Create wallet button. The escrow uses it. |
 | `SCANNER_PRIVATE_KEY` | For escrow. The demo scanner key. Without it the "Scan at gate" button cannot send the check-in. |
 | `BASE_SEPOLIA_RPC_URL` | Optional. Override the escrow RPC. Defaults to the public `https://sepolia.base.org`. |
