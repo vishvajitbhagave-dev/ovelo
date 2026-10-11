@@ -87,6 +87,7 @@ All three support function calling and were tested with Ovelo's tool calling (a 
 - **HIGH is always refused.** Anything scoring 70 or more is blocked, with the reasons shown and no fund button.
 - **MEDIUM needs a human.** Ovelo never funds a MEDIUM ticket by itself; a person must press **Approve and fund escrow**.
 - **LOW is funded by the agent.** For LOW-risk tickets the agent may place the escrow itself.
+- **Activity log.** An **Activity** tab lists, in plain words, every decision and payment of this browser session (risk checks, the paid x402 report, escrow funding, refusals, human approvals, scans, rejections and refunds), newest first, with real amounts, shortened recipients and Basescan links. It is kept in memory only and resets when the page is refreshed.
 - **Paid history report via x402.** The agent buys extra background (issuer, face value, ownership timeline, scan status) by signing a 0.01 USDC payment message that the API verifies.
 - **Real on-chain escrow on Base Sepolia.** The money is held by [`OveloEscrow`](escrow/contracts/OveloEscrow.sol) at [`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E) (chain id 84532), with test money only.
 - **Demo gate scanner.** A **Scan at gate** button calls `checkIn` from a trusted demo scanner wallet and releases the money to the seller.

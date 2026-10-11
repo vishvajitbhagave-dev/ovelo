@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, ExternalLink, RefreshCw, ShieldCheck, TimerReset, TriangleAlert, Wallet as WalletIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { EscrowTx } from "@/components/check-tab";
+import { makeActivityEvent, type ActivityEvent } from "@/lib/activity";
 
 export type WalletInfo = { address: string | null; balance?: string; error?: string };
 
@@ -75,6 +76,7 @@ export function WalletTab({
   onRefresh,
   escrowTxs,
   onEscrowTx,
+  onActivity,
 }: {
   wallet: WalletInfo | null;
   creating: boolean;
@@ -82,6 +84,7 @@ export function WalletTab({
   onRefresh: () => void;
   escrowTxs: EscrowTx[];
   onEscrowTx: (txs: EscrowTx[]) => void;
+  onActivity: (events: ActivityEvent[]) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [status, setStatus] = useState<EscrowStatus | null>(null);
@@ -152,18 +155,42 @@ export function WalletTab({
               at: new Date().toISOString(),
             },
           ]);
+          onActivity([
+            makeActivityEvent({
+              title: `Refunded deal ${deal.dealId} to the agent wallet`,
+              outcome: "done",
+              amount: deal.amountUsdc,
+              counterparty: "agent",
+              hash: data.refundHash,
+              url: data.link,
+            }),
+          ]);
           onRefresh();
           await Promise.all([load(), loadOpenDeals()]);
         } else {
           setRefundMsg({ dealId: deal.dealId, text: data?.message ?? "The refund was refused.", ok: false });
+          onActivity([
+            makeActivityEvent({
+              title: `Refund refused for deal ${deal.dealId}`,
+              outcome: "refused",
+              reason: data?.message ?? "The refund was refused.",
+            }),
+          ]);
         }
       } catch {
         setRefundMsg({ dealId: deal.dealId, text: "Could not reach the refund service.", ok: false });
+        onActivity([
+          makeActivityEvent({
+            title: `Refund refused for deal ${deal.dealId}`,
+            outcome: "refused",
+            reason: "Could not reach the refund service.",
+          }),
+        ]);
       } finally {
         setRefunding(null);
       }
     },
-    [load, loadOpenDeals, onRefresh, onEscrowTx]
+    [load, loadOpenDeals, onRefresh, onEscrowTx, onActivity]
   );
 
   // Refresh balances whenever a new escrow transaction happens this session.

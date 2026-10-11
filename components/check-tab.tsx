@@ -31,6 +31,7 @@ import {
   Users,
 } from "lucide-react";
 import { RiskCard, parseRiskResult, type RiskLevel } from "@/components/risk-card";
+import { makeActivityEvent, type ActivityEvent } from "@/lib/activity";
 import { cn } from "@/lib/utils";
 
 export type Step = { tool: string; args: unknown; result: any; error?: boolean };
@@ -74,11 +75,13 @@ export function CheckTab({
   check,
   onRun,
   onEscrowTx,
+  onActivity,
   fundedDeal,
 }: {
   check: CheckState;
   onRun: (id: string) => void;
   onEscrowTx: (txs: EscrowTx[]) => void;
+  onActivity: (events: ActivityEvent[]) => void;
   fundedDeal?: FundedDeal | null;
 }) {
   return (
@@ -87,7 +90,7 @@ export function CheckTab({
       {check.status === "loading" && <LoadingState id={check.id} />}
       {check.status === "error" && <ErrorState check={check} onRun={onRun} />}
       {check.status === "done" && (
-        <DoneCheck check={check} onEscrowTx={onEscrowTx} fundedDeal={fundedDeal} />
+        <DoneCheck check={check} onEscrowTx={onEscrowTx} onActivity={onActivity} fundedDeal={fundedDeal} />
       )}
     </section>
   );
@@ -157,10 +160,12 @@ function ErrorState({ check, onRun }: { check: Extract<CheckState, { status: "er
 function DoneCheck({
   check,
   onEscrowTx,
+  onActivity,
   fundedDeal,
 }: {
   check: Extract<CheckState, { status: "done" }>;
   onEscrowTx: (txs: EscrowTx[]) => void;
+  onActivity: (events: ActivityEvent[]) => void;
   fundedDeal?: FundedDeal | null;
 }) {
   const reportStep = check.steps.find((s) => s.tool === "get_ticket_history_report");
@@ -215,6 +220,7 @@ function DoneCheck({
           riskLevel={risk.riskLevel}
           reasons={risk.reasons}
           onEscrowTx={onEscrowTx}
+          onActivity={onActivity}
           initialDeal={fundedDeal}
         />
       )}
@@ -353,12 +359,14 @@ function EscrowPanel({
   riskLevel,
   reasons,
   onEscrowTx,
+  onActivity,
   initialDeal,
 }: {
   ticketId: string;
   riskLevel: RiskLevel;
   reasons: string[];
   onEscrowTx: (txs: EscrowTx[]) => void;
+  onActivity: (events: ActivityEvent[]) => void;
   initialDeal?: FundedDeal | null;
 }) {
   const [busy, setBusy] = useState<false | "fund" | "scan">(false);
@@ -391,8 +399,24 @@ function EscrowPanel({
       const data: FundResponse = await res.json();
       if (data.error) {
         setError(data.error);
+        onActivity([
+          makeActivityEvent({
+            title: `Funding refused for ${ticketId}`,
+            outcome: "refused",
+            ticketId,
+            reason: data.error,
+          }),
+        ]);
       } else if (data.ok === false) {
         setError(data.message ?? "Funding was refused.");
+        onActivity([
+          makeActivityEvent({
+            title: `Funding refused for ${ticketId}`,
+            outcome: "refused",
+            ticketId,
+            reason: data.message ?? "Funding was refused.",
+          }),
+        ]);
       } else if (data.ok && data.fundHash) {
         const links = data.links ?? [];
         if (data.dealId) {
@@ -411,9 +435,32 @@ function EscrowPanel({
             at: new Date().toISOString(),
           }))
         );
+        const fundLink = links.find((l) => l.kind === "fund") ?? null;
+        onActivity([
+          makeActivityEvent({
+            title:
+              riskLevel === "MEDIUM"
+                ? `Human approved and funded escrow for ${ticketId}`
+                : `Funded escrow for ${ticketId}`,
+            outcome: "done",
+            ticketId,
+            amount: "1",
+            counterparty: "escrow",
+            hash: fundLink?.hash ?? data.fundHash,
+            url: fundLink?.url,
+          }),
+        ]);
       }
     } catch {
       setError("Could not reach the server. Is the dev server still running?");
+      onActivity([
+        makeActivityEvent({
+          title: `Funding refused for ${ticketId}`,
+          outcome: "refused",
+          ticketId,
+          reason: "Could not reach the server.",
+        }),
+      ]);
     } finally {
       setBusy(false);
     }
@@ -434,18 +481,52 @@ function EscrowPanel({
       const data: ScanResponse = await res.json();
       if (data.error) {
         setError(data.error);
+        onActivity([
+          makeActivityEvent({
+            title: `Scan refused for ${ticketId}`,
+            outcome: "refused",
+            ticketId,
+            reason: data.error,
+          }),
+        ]);
       } else if (data.ok && data.checkInHash && data.link) {
         setScanLink(data.link);
         setDeal({ ...deal, status: data.status ?? "Released" });
         onEscrowTx([
           { kind: "scan", hash: data.checkInHash, url: data.link, ticketId, dealId: deal.dealId, at: new Date().toISOString() },
         ]);
+        onActivity([
+          makeActivityEvent({
+            title: `Scanned at gate for ${ticketId} — released 1 test USDC to the seller`,
+            outcome: "done",
+            ticketId,
+            amount: "1",
+            hash: data.checkInHash,
+            url: data.link,
+          }),
+        ]);
       } else {
         setRejection(data.message ?? "The gate rejected the scan.");
         if (data.status) setDeal({ ...deal, status: data.status });
+        onActivity([
+          makeActivityEvent({
+            title: `Second scan rejected for ${ticketId}`,
+            outcome: "refused",
+            ticketId,
+            reason: data.message ?? "The gate rejected the scan.",
+          }),
+        ]);
       }
     } catch {
       setError("Could not reach the server. Is the dev server still running?");
+      onActivity([
+        makeActivityEvent({
+          title: `Scan refused for ${ticketId}`,
+          outcome: "refused",
+          ticketId,
+          reason: "Could not reach the server.",
+        }),
+      ]);
     } finally {
       setBusy(false);
     }

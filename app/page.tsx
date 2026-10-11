@@ -21,6 +21,8 @@ import { RiskCard } from "@/components/risk-card";
 import { TicketsTab } from "@/components/tickets-tab";
 import { CheckTab, type CheckState, type EscrowTx, type FundedDeal, type Step } from "@/components/check-tab";
 import { WalletTab, type WalletInfo } from "@/components/wallet-tab";
+import { ActivityTab } from "@/components/activity-tab";
+import { activityFromSteps, type ActivityEvent } from "@/lib/activity";
 import { cn } from "@/lib/utils";
 
 type Message = { role: "user" | "agent"; text: string; steps?: Step[]; error?: boolean; model?: string };
@@ -33,11 +35,12 @@ type Status = {
   tools: { name: string; description: string }[];
 };
 type AgentResponse = { answer?: string; steps?: Step[]; error?: string; model?: string };
-type Tab = "tickets" | "check" | "wallet";
+type Tab = "tickets" | "check" | "activity" | "wallet";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "tickets", label: "Tickets" },
   { id: "check", label: "Check" },
+  { id: "activity", label: "Activity" },
   { id: "wallet", label: "Agent wallet" },
 ];
 
@@ -56,8 +59,14 @@ export default function Home() {
   const [model, setModel] = useState("");
   const [escrowTxs, setEscrowTxs] = useState<EscrowTx[]>([]);
   const [fundedDeals, setFundedDeals] = useState<Record<string, FundedDeal>>({});
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
 
   const loadWallet = () => fetch("/api/wallet").then((r) => r.json()).then(setWallet);
+
+  /** Append real activity events (chat tool steps or button actions) to the session log. */
+  const logActivity = (events: ActivityEvent[]) => {
+    if (events.length) setActivity((prev) => [...prev, ...events]);
+  };
 
   useEffect(() => {
     fetch("/api/agent").then((r) => r.json()).then(setStatus);
@@ -101,6 +110,7 @@ export default function Home() {
           ? { role: "agent", text: data.error, error: true }
           : { role: "agent", text: data.answer ?? "", steps: data.steps, model: data.model },
       ]);
+      logActivity(activityFromSteps(data.steps));
       if (data.steps?.some((s) => s.result?.payment)) loadWallet();
 
       // Learn from escrows the agent funded in the CHAT: add their real
@@ -239,9 +249,11 @@ export default function Home() {
               check={check}
               onRun={runCheck}
               onEscrowTx={(txs) => setEscrowTxs((prev) => [...prev, ...txs])}
+              onActivity={logActivity}
               fundedDeal={check.status === "done" ? fundedDeals[check.id] ?? null : null}
             />
           )}
+          {tab === "activity" && <ActivityTab activity={activity} />}
           {tab === "wallet" && (
             <WalletTab
               wallet={wallet}
@@ -250,6 +262,7 @@ export default function Home() {
               onRefresh={loadWallet}
               escrowTxs={escrowTxs}
               onEscrowTx={(txs) => setEscrowTxs((prev) => [...prev, ...txs])}
+              onActivity={logActivity}
             />
           )}
         </main>
