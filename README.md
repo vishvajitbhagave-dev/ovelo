@@ -81,6 +81,63 @@ All three support function calling and were tested with Ovelo's tool calling (a 
 
 **Default:** the `GEMINI_MODEL` value in `.env` when it names a model on the list; otherwise `gemini-flash-lite-latest`. The allowlist lives in `agent/models.ts`.
 
+## How it works (diagrams)
+
+### System architecture
+
+```mermaid
+flowchart TD
+  UI["Browser — Tickets · Check · Activity · Agent wallet tabs<br/>+ chat with model switcher"]
+  AgentAPI["POST /api/agent<br/>(model allowlist)"]
+  Loop{{"Agent loop — agent/agent.ts<br/>Gemini + tools, up to 5 steps"}}
+  ReadTools["Read/rule tools — check_ticket_risk, list_demo_tickets,<br/>compare_tickets, get_deal_status"]
+  PaidTools["x402 paid tools — get_ticket_history_report, get_weather"]
+  FundTool["fund_escrow"]
+  Rules["Risk decided in code — agent/tickets.ts"]
+  X402["Paid demo APIs — /api/weather, /api/ticket-report"]
+  EscrowMod["agent/escrow.ts — server-only keys<br/>approve + fund / checkIn / refund"]
+  EscrowAPI["/api/escrow/* routes"]
+  Chain[("Base Sepolia — OveloEscrow + test USDC")]
+  Buyer["Agent / buyer wallet"]
+  Scanner["Demo scanner wallet"]
+  Seller["Demo seller 0x3c86…c04d"]
+
+  UI -->|"chat: messages + model"| AgentAPI
+  UI -->|"Check: fund / scan / refund"| EscrowAPI
+  AgentAPI --> Loop
+  Loop --> ReadTools
+  Loop --> PaidTools
+  Loop --> FundTool
+  ReadTools --> Rules
+  PaidTools -->|"X-PAYMENT 0.01 USDC — signed, not settled on-chain"| X402
+  FundTool --> EscrowMod
+  EscrowAPI --> EscrowMod
+  EscrowMod -->|"signs with"| Buyer
+  EscrowMod -->|"approve + fund"| Chain
+  Scanner -->|"checkIn"| Chain
+  Chain -->|"release 1 test USDC"| Seller
+```
+
+The browser only talks to Next.js API routes. The Gemini agent loop runs on the server and calls the tools, which reach the rule engine, the x402 paid APIs and the escrow module. Only `agent/escrow.ts` holds keys and sends real Base Sepolia testnet transactions, signed by the agent/buyer wallet; the demo scanner wallet releases the funds to the demo seller. x402 payments are signed and verified but not settled on-chain.
+
+### Ticket check and escrow lifecycle
+
+```mermaid
+flowchart TD
+  Check["Check a demo ticket"] --> Report["Buy the paid history report<br/>(0.01 USDC via x402)"]
+  Report --> Risk{"Risk decided by code<br/>agent/tickets.ts"}
+  Risk -->|"HIGH (70+)"| High["Refused — reasons shown,<br/>no fund button"]
+  Risk -->|"MEDIUM"| Medium["Waiting for a person —<br/>Approve and fund escrow"]
+  Risk -->|"LOW"| Fund["Agent funds escrow —<br/>approve 1 USDC + fund"]
+  Medium -->|"human approves"| Fund
+  Fund --> Deal[("Deal Funded — 1 test USDC<br/>held by OveloEscrow")]
+  Deal -->|"scanner checkIn"| Released["Released — 1 test USDC<br/>paid to the seller"]
+  Deal -->|"second scan"| Rejected["Rejected — simulated first,<br/>no transaction sent"]
+  Deal -->|"no scan, deadline passes"| Refund["Refunded — 1 test USDC<br/>back to the agent wallet"]
+```
+
+The risk level comes only from the fixed rules in code: HIGH is always refused, MEDIUM waits for a person to press **Approve and fund escrow**, and LOW may be funded by the agent. A funded deal ends as **Released** (scanner check-in), is **Rejected** on a second scan (simulated first, so nothing is sent), or is **Refunded** to the agent wallet once the deadline passes with no scan.
+
 ## Key features
 
 - **Risk rules live in code.** A plain TypeScript function in [`agent/tickets.ts`](agent/tickets.ts) adds up points and buckets the total, so the same ticket always gets the same answer. The AI cannot change a level, score or reason.
