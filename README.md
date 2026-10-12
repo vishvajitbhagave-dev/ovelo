@@ -349,6 +349,41 @@ The server recomputes the risk itself — it never trusts the browser or the AI 
 
 Keys (`WALLET_PRIVATE_KEY`, `SCANNER_PRIVATE_KEY`) are used only inside `agent/escrow.ts` on the server. They are never logged, returned to the browser, or included in an API response.
 
+## Trust model
+
+Ovelo is a demo, but the parts that hold or move test money are real code and a real contract. This is what each protection actually does — and, just as important, what it does **not**.
+
+### Attack or mistake → what Ovelo does
+
+| Attack or mistake | What Ovelo does |
+| :--- | :--- |
+| The browser asks to fund a **HIGH**-risk ticket (or claims it is LOW) | The server ignores the browser: it recomputes the risk itself and refuses **HIGH** every time. |
+| The model tries to fund a **MEDIUM** ticket on its own | The agent tool always sends `approved: false`, so **MEDIUM** is refused until a person presses **Approve and fund escrow**. |
+| The model calls `fund_escrow` twice for the same ticket | The agent path uses a deterministic run id, so both calls map to the same on-chain ticket; the contract refuses a second deal while one is open. |
+| Someone sends an arbitrary model name from the browser | The server only accepts model ids on its allowlist and rejects anything else. |
+| The scanner tries to check in a second time | The contract rejects the second check-in. Ovelo simulates it first, so no transaction is even sent. |
+| The scanner tries to check in after the deadline | The contract rejects any check-in after the deal's deadline. |
+| Someone other than the buyer tries to refund | The contract only lets the buyer refund, only while the deal is Funded, and only after the deadline. |
+| The agent wallet is nearly empty | The server refuses to spend below its ETH gas floor or its 3 USDC floor. |
+| The demo is asked to open too many deals | The server refuses after the cap of 40 deals. |
+| Two new deals are opened back to back | A global 20-second cooldown applies to both the button and the agent's tool. |
+| A key leaking into a response | The keys live server-side only (a server environment variable, or the server-side wallet file created by the **Create wallet** button) and are never returned in any API response. |
+
+### What a result means
+
+A **LOW** result means only that the fixed rules found nothing wrong on the demo data. It is **not** a guarantee that any real ticket is safe, and it says nothing about a real seller, issuer or event.
+
+### What Ovelo does NOT protect against
+
+- **A dishonest demo scanner.** The gate check-in is trusted: whoever holds the demo scanner key could release the funds. There is no independent check that a real ticket was shown.
+- **One shared public demo wallet.** The agent/buyer wallet is a single shared demo wallet, not a wallet per user.
+- **x402 payments are signed but not settled on-chain yet (planned).** The weather and ticket-report demos only sign and verify a payment message; no x402 payment is submitted on-chain.
+- **The contract is not audited and not yet verified on Basescan (planned).** The source is not published on the explorer yet.
+- **Demo tickets only.** Ovelo knows only six made-up tickets and cannot check a real ticket, seller or event company.
+- **A lagging public RPC.** Answers rely on a public Base Sepolia RPC that can return stale reads; the app polls reads to reduce this, but a value can still be a moment behind.
+
+See the [on-chain proof](docs/PROOF.md) for the real testnet transactions, [`SECURITY.md`](SECURITY.md) for how to report a problem and the test-wallet warning, and [`CHANGELOG.md`](CHANGELOG.md) for what is built and what is only planned.
+
 ## Honest limits
 
 1. **It only works on fake tickets.** The six demo tickets are made up. Ovelo has no connection to any real ticketing system.
