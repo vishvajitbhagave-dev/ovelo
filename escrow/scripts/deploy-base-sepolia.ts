@@ -18,6 +18,14 @@ const SCANNER = "0xdcBe6C7861cB7cB29BEc1682d6aE701c6B4cB2b6"; // trusted scanner
 const MAX_DEAL_AMOUNT = 5_000_000n; // 5 USDC, in base units (6 decimals)
 const CHAIN_ID = 84532;
 
+// Fail early, in plain words, if the deployer key is missing. The config no
+// longer requires a key just to load, so this is the place that explains it.
+if (!process.env.DEPLOYER_PRIVATE_KEY) {
+  throw new Error(
+    "Missing DEPLOYER_PRIVATE_KEY: the Base Sepolia deployer key is not set, so there is nothing to deploy with. Add a TEST-only deployer key to escrow/.env (or the environment), then run this again."
+  );
+}
+
 const here = dirname(fileURLToPath(import.meta.url));
 const artifactPath = join(
   here,

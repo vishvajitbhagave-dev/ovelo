@@ -22,11 +22,14 @@ function loadEnvFile() {
   }
 }
 
-/// Reads a required environment variable; fails loudly if it is missing.
-function env(name: string): string {
+/// Returns a network's account list: the key when it is set, otherwise an empty
+/// list. This keeps the Base Sepolia entry defined without requiring any key to
+/// load the config, so `hardhat compile` and `hardhat test` run with no
+/// environment variables at all. The scripts that actually send transactions
+/// check for their own key themselves before sending anything.
+function accountsFor(name: string): string[] {
   const value = process.env[name];
-  if (!value) throw new Error(`Missing environment variable: ${name}`);
-  return value;
+  return value ? [value] : [];
 }
 
 loadEnvFile();
@@ -39,7 +42,7 @@ export default defineConfig({
       type: "http",
       chainType: "l1",
       url: "https://sepolia.base.org",
-      accounts: [env("DEPLOYER_PRIVATE_KEY")],
+      accounts: accountsFor("DEPLOYER_PRIVATE_KEY"),
     },
   },
   plugins: [
