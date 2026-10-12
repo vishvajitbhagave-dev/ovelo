@@ -2,6 +2,8 @@
 
 # Ovelo
 
+[![CI](https://github.com/vishvajitbhagave-dev/ovelo/actions/workflows/ci.yml/badge.svg)](https://github.com/vishvajitbhagave-dev/ovelo/actions/workflows/ci.yml)
+
 **Ovelo helps you buy resale tickets without getting burned — an AI agent that checks the deal, explains the risk, and holds your money in escrow until the ticket is checked at the gate.**
 
 ## What Ovelo solves
@@ -268,6 +270,37 @@ Use **test wallets only** for `WALLET_PRIVATE_KEY` and `SCANNER_PRIVATE_KEY`. Ne
 - Set the variables above in the Vercel project's environment variables. The Create wallet button writes to disk, which is read-only on Vercel, so use `WALLET_PRIVATE_KEY` (and `SCANNER_PRIVATE_KEY`) there.
 - The escrow routes (`/api/escrow/fund`, `/api/escrow/scan`, `/api/escrow/refund`) wait for one or two transaction receipts, so they are the slow calls. They set `maxDuration = 60` (seconds). On Vercel's Hobby plan functions are capped at 10 seconds, so **funding may time out there** — raise the limit on a paid plan or point `BASE_SEPOLIA_RPC_URL` at a faster RPC. The read-only routes (`/api/escrow/deal`, `/api/escrow/status`, `/api/escrow/open-deals`) return immediately.
 - Reads can be slightly stale on the load-balanced public RPC right after a write; the app polls reads until they match the expected on-chain result, and waits for the allowance to be visible before funding.
+
+## Testing
+
+Unit tests run on Node's built-in test runner — no extra packages, no network, no API keys and no blockchain calls.
+
+```bash
+npm test          # risk rules, escrow policy/guards, model allowlist, activity log
+npx tsc --noEmit  # typecheck
+npm run build     # production build
+
+cd escrow
+npm test          # OveloEscrow contract tests (local in-memory chain)
+```
+
+**What the tests cover**
+
+- `assessTicketRisk` for all six demo tickets — level and score (OV-1001 LOW 0, OV-1002 HIGH 100, OV-1003 HIGH 140, OV-1004 HIGH 70, OV-1005 HIGH 80, OV-1006 MEDIUM 65), non-empty reasons, and the recommendation text matching the level.
+- `findDemoTicket` / `isKnownTicket`: case- and space-tolerant lookups, and unknown or malformed ids returning nothing instead of throwing.
+- Funding policy (`evaluateFundingPolicy`): HIGH always refused, MEDIUM refused unless approved, LOW allowed; unknown tickets refused.
+- Deterministic ids: `runIdFor` is stable inside one 10-minute funding window and changes across windows or tickets; `ticketKeyFor` is a deterministic 32-byte hash.
+- The deal amount is always exactly 1 test USDC, the guard thresholds (cooldown `20s`, ETH floor, `3 USDC` floor, `40` deal cap) and `DEAL_STATUS`.
+- The model allowlist (`agent/models.ts`): allowed ids pass, unknown ids are rejected, and the default (`gemini-flash-lite-latest`) is used when none is given.
+- The activity log (`lib/activity.ts`): tool steps become the right plain-English events.
+
+**What the tests do not cover**
+
+- Anything that needs the network or a key: `runAgent` and the Gemini calls, the x402 `payAndFetch` / `verifyPayment` flow, and every escrow function that reads the chain or sends a transaction (`fundEscrow`, `scanAtGate`, `refundDeal`, `getEscrowStatus`, `listOpenDeals`). The guard comparisons in `fundEscrow` (cooldown, balance floor, deal cap) run next to those chain reads, so only their threshold constants are asserted here.
+- The React UI and the API routes.
+- `escrow/` is covered separately by the Hardhat contract tests.
+
+CI runs all of this on every push and pull request to `main`: see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## How a deal works (the three endings)
 
