@@ -2,7 +2,7 @@
   "name": "ovelo-escrow",
   "version": "0.1.0",
   "private": true,
-  "description": "Ovelo ticket escrow smart contracts (demo). Compiled and tested locally only. Nothing is deployed.",
+  "description": "Ovelo ticket escrow smart contracts (demo). Compiled and tested locally, and deployed on Base Sepolia (test network) at 0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E.",
   "type": "module",
   "scripts": {
     "compile": "hardhat compile",

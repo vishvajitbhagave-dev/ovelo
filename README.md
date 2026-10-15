@@ -192,7 +192,7 @@ If you ask about a ticket id that doesn't exist, the agent says so and lists the
 ## Demo videos and links
 
 ```
-Week 1 (ovelo.v1): Demo-video-link
+Week 1 (ovelo.v1): https://youtu.be/xYoUDYy8RFc?si=iMAdcceDjaRnoL8B
 Week 2 (ovelo.v2): Demo-video-link
 Week 3 (ovelo.v3): Demo-video-link
 ```
