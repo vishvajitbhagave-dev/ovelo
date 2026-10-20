@@ -7,3 +7,4 @@ coverage.json
 .env
 .env.*
 !.env.example
+.receiver-wallet.json

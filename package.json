@@ -11,6 +11,10 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@google/genai": "^2.24.0",
+    "@x402/core": "2.28.0",
+    "@x402/evm": "2.28.0",
+    "@x402/fetch": "2.28.0",
+    "@x402/next": "2.28.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "lucide-react": "^1.48.0",
