@@ -8,7 +8,8 @@
  * Add your own tool: copy one of the objects below, change it,
  * and save. It shows up in the "Tools" list on the page.
  */
-import { getWalletAddress, getWalletBalance, payAndFetch } from "./wallet";
+import { getWalletAddress, getWalletBalance } from "./wallet";
+import { payAndFetchOfficial } from "./x402";
 import { runIdFor, fundEscrow, readDeal, listOpenDeals, readChainTime } from "./escrow";
 import { DEMO_EVENT, DEMO_TICKETS, DEMO_TICKET_IDS, assessTicketRisk, findDemoTicket } from "./tickets";
 
@@ -34,7 +35,7 @@ function timeLeftLabel(seconds: number): string {
 }
 
 export const tools: Tool[] = [
-  // ─── 1. A paid API: the agent's wallet signs a payment to unlock it ───
+  // ─── 1. A paid API: the agent's wallet pays for it, settled on-chain ───
   {
     name: "get_weather",
     description: "Get the current weather for a city. Costs 0.01 USDC, paid automatically from the agent's wallet.",
@@ -46,7 +47,7 @@ export const tools: Tool[] = [
       required: ["city"],
     },
     run: async ({ city }, { baseUrl }) => {
-      return payAndFetch(`${baseUrl}/api/weather?city=${encodeURIComponent(city)}`);
+      return payAndFetchOfficial(`${baseUrl}/api/weather?city=${encodeURIComponent(city)}`);
     },
   },
 
@@ -143,7 +144,7 @@ export const tools: Tool[] = [
       required: ["ticketId"],
     },
     run: async ({ ticketId }, { baseUrl }) => {
-      return payAndFetch(
+      return payAndFetchOfficial(
         `${baseUrl}/api/ticket-report?ticketId=${encodeURIComponent(String(ticketId ?? ""))}`
       );
     },

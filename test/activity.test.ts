@@ -19,17 +19,85 @@ test("activityFromSteps ignores missing/unknown steps", () => {
   assert.deepEqual(activityFromSteps([{ tool: "get_my_wallet" }]), []);
 });
 
-test("a paid history report becomes a 'done' event with the parsed amount", () => {
+test("a VERIFIED paid history report becomes a 'done' event settled on-chain", () => {
   const events = activityFromSteps([
     {
       tool: "get_ticket_history_report",
-      result: { payment: { amount: "0.01 USDC" }, data: { ticket: { id: "OV-1002" } } },
+      result: {
+        payment: {
+          amount: "0.01 USDC",
+          to: "0xDc672f03ec6226B31E45347402af077eCb595559",
+          txHash: "0xabc",
+          url: "https://sepolia.basescan.org/tx/0xabc",
+          verified: true,
+          blockNumber: "48404488",
+        },
+        data: { ticket: { id: "OV-1002" } },
+      },
     },
   ]);
   assert.equal(events.length, 1);
   assert.equal(events[0].outcome, "done");
   assert.equal(events[0].amount, "0.01");
   assert.equal(events[0].ticketId, "OV-1002");
+  assert.equal(events[0].amountNote, "settled on-chain via x402 · block 48404488");
+  assert.equal(events[0].verified, true);
+  assert.equal(events[0].blockNumber, "48404488");
+  assert.equal(events[0].counterparty, "apiOwner");
+  assert.equal(events[0].counterpartyAddress, "0xDc672f03ec6226B31E45347402af077eCb595559");
+  assert.equal(events[0].hash, "0xabc");
+  assert.equal(events[0].url, "https://sepolia.basescan.org/tx/0xabc");
+});
+
+test("an UNVERIFIED paid report is logged honestly, never as settled on-chain", () => {
+  const events = activityFromSteps([
+    {
+      tool: "get_ticket_history_report",
+      result: {
+        payment: {
+          amount: "0.01 USDC",
+          to: "0xDc672f03ec6226B31E45347402af077eCb595559",
+          txHash: "0xabc",
+          url: "https://sepolia.basescan.org/tx/0xabc",
+          verified: false,
+          verifyReason: "the transaction receipt was not readable yet.",
+        },
+        data: { ticket: { id: "OV-1002" } },
+      },
+    },
+  ]);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].amount, "0.01");
+  assert.equal(events[0].verified, false);
+  assert.equal(events[0].blockNumber, undefined);
+  assert.equal(events[0].amountNote, "paid — facilitator reported success but not verified on-chain");
+  assert.ok(!String(events[0].amountNote).includes("settled on-chain"));
+});
+
+test("a paid report with a hash but no verified flag is NOT claimed as settled", () => {
+  const events = activityFromSteps([
+    {
+      tool: "get_ticket_history_report",
+      result: {
+        payment: { amount: "0.01 USDC", txHash: "0xabc", url: "https://sepolia.basescan.org/tx/0xabc" },
+      },
+    },
+  ]);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].verified, false);
+  assert.equal(events[0].amountNote, "paid — facilitator reported success but not verified on-chain");
+});
+
+test("a paid report with no settlement details still logs the amount alone", () => {
+  const events = activityFromSteps([
+    { tool: "get_ticket_history_report", result: { payment: { amount: "0.01 USDC" } } },
+  ]);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].amount, "0.01");
+  assert.equal(events[0].amountNote, undefined);
+  assert.equal(events[0].hash, undefined);
+  assert.equal(events[0].url, undefined);
+  assert.equal(events[0].counterpartyAddress, undefined);
 });
 
 test("a HIGH risk check becomes a check event plus a refused event", () => {

@@ -1,11 +1,13 @@
 /**
  * A PAID TICKET HISTORY REPORT API (demo)
  *
- * Same x402 pattern as the weather API:
+ * Same paywall as the weather API:
  *
- *   1. No payment            -> 402 Payment Required + { price, asset, payTo }
- *   2. Signed payment        -> 200 with the history report
- *   3. Unknown ticket id     -> 404 with the list of valid ids (never a crash)
+ *   1. Unknown ticket id     -> 404 with the list of valid ids (never a crash,
+ *                               checked BEFORE the paywall so a typo costs nothing)
+ *   2. No payment            -> 402 Payment Required (price, asset, payTo)
+ *   3. Verified payment      -> 200 with the history report, once the payment
+ *                               has settled on-chain (see agent/x402-server.ts)
  *
  * ⚠️  FAKE DATA ONLY. This invents a history for six demo tickets.
  *     It cannot look up any real ticket, seller, issuer or event company.
@@ -14,13 +16,14 @@
  * answer must only ever come from the `check_ticket_risk` tool, so the two
  * stay independent of each other.
  */
-import { verifyPayment } from "@/agent/wallet";
+import { NextResponse, type NextRequest } from "next/server";
+import { paidRoute, payerFromRequest, protectPaidRoute } from "@/agent/x402-server";
 import { DEMO_TICKET_IDS, findDemoTicket, type Ticket } from "@/agent/tickets";
 
-// Same price as the weather API (app/api/weather/route.ts) — keep in sync.
-const PRICE = "0.01";
-const ASSET = "USDC";
-const PAY_TO = "0x000000000000000000000000000000000000dEaD"; // the API owner's wallet (demo)
+// The answer depends on the payment header, so this route is never static.
+export const dynamic = "force-dynamic";
+// Settlement talks to the facilitator; give it the same budget as the escrow routes.
+export const maxDuration = 60;
 
 /** Pretend the ticket was issued this long before its most recent transfer. */
 const ISSUE_OFFSET_MINUTES = 10080; // 7 days
@@ -122,29 +125,39 @@ function buildReport(ticket: Ticket, paidBy: string) {
   };
 }
 
-export async function GET(req: Request) {
+/** Unknown id -> 404 with the list of valid ids (never a crash). */
+function ticketNotFound(rawTicketId: string | null) {
+  return NextResponse.json(
+    {
+      error: `No ticket history found for "${rawTicketId ?? ""}"`,
+      message: "That ticket id does not exist. This API only has demo tickets.",
+      validTicketIds: DEMO_TICKET_IDS,
+    },
+    { status: 404 }
+  );
+}
+
+/** Runs behind the paywall: the payment is verified before this is ever called. */
+const handler = async (req: NextRequest) => {
   const url = new URL(req.url, "http://placeholder.invalid");
   const rawTicketId = url.searchParams.get("ticketId");
   const ticket = rawTicketId ? findDemoTicket(rawTicketId) : undefined;
 
-  // 1. Unknown id -> 404 (checked before the paywall so it never crashes).
-  if (!ticket) {
-    return Response.json(
-      {
-        error: `No ticket history found for "${rawTicketId ?? ""}"`,
-        message: "That ticket id does not exist. This API only has demo tickets.",
-        validTicketIds: DEMO_TICKET_IDS,
-      },
-      { status: 404 }
-    );
-  }
+  // Checked again here, so the paid handler can never return a report for an
+  // unknown id even if it were ever reached without the gate above.
+  if (!ticket) return ticketNotFound(rawTicketId);
 
-  // 2. No (or bad) payment -> 402, telling the caller exactly what to pay.
-  const payment = await verifyPayment(req.headers.get("X-PAYMENT"));
-  if (!payment || payment.to !== PAY_TO || Number(payment.amount) < Number(PRICE)) {
-    return Response.json({ error: "Payment Required", price: PRICE, asset: ASSET, payTo: PAY_TO }, { status: 402 });
-  }
+  // Paid -> the report, addressed to whoever's payment was verified.
+  return NextResponse.json(buildReport(ticket, payerFromRequest(req) ?? "unknown"));
+};
 
-  // 3. Paid -> the report.
-  return Response.json(buildReport(ticket, payment.from));
+const paidGet = protectPaidRoute(handler, paidRoute("Ovelo demo ticket history report. 0.01 test USDC per request."));
+
+export async function GET(req: NextRequest) {
+  // 1. Unknown id -> 404, checked before the paywall so a typo never costs money.
+  const rawTicketId = new URL(req.url, "http://placeholder.invalid").searchParams.get("ticketId");
+  if (!rawTicketId || !findDemoTicket(rawTicketId)) return ticketNotFound(rawTicketId);
+
+  // 2. Known id -> 402 until it is paid, then the report.
+  return paidGet(req);
 }

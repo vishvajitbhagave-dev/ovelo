@@ -6,8 +6,8 @@
  * Base Sepolia (the same token the escrow uses, see agent/escrow-config.ts).
  * Nothing here is a secret. Do not put keys in this file.
  *
- * Not imported by any code yet — introduced ahead of the on-chain settlement
- * upgrade so the constants have one home.
+ * Imported by agent/x402-server.ts (what the APIs charge and where the money
+ * goes) and agent/x402.ts (the price label shown back to the caller).
  */
 export const X402 = {
   /**
@@ -24,10 +24,26 @@ export const X402 = {
   /** Test USDC on Base Sepolia (6 decimals), same token as the escrow. */
   token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
   tokenDecimals: 6,
+  /**
+   * The token's EIP-712 domain, which the payer signs against
+   * (TransferWithAuthorization over { name, version, chainId, verifyingContract }).
+   * Both values were read back from the token on Base Sepolia: its
+   * DOMAIN_SEPARATOR is exactly the domain built with name "USDC", version "2".
+   * Without them the official client refuses to sign.
+   */
+  tokenName: "USDC",
+  tokenVersion: "2",
   /** The paid APIs charge 0.01 USDC per request. */
   priceUsd: "0.01",
   /** 0.01 USDC in atomic (base) units: 0.01 * 10^6 = 10000. */
   priceBaseUnits: "10000",
+  /**
+   * How long a signed authorization stays valid, in seconds. The payer signs
+   * validBefore = now + this, and the resource server advertises it as
+   * maxTimeoutSeconds. Kept at 60s: long enough to verify + settle, short enough
+   * that a stuck authorization cannot linger. Matches the paid routes' maxDuration.
+   */
+  maxTimeoutSeconds: 60,
   /** Where the paid APIs' USDC goes (public address of the throwaway x402 receiver wallet). */
   payTo: "0xDc672f03ec6226B31E45347402af077eCb595559",
 } as const;

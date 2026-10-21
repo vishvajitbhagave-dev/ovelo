@@ -7,13 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned work for Week 2 and Week 3. These items are **not built yet**; the list
-mirrors the future scope in the [README](README.md#future-scope-for-week-2-and-week-3).
+Work for Week 2 and Week 3. It mirrors the future scope in the
+[README](README.md#future-scope-for-week-2-and-week-3).
+
+### Added
+
+- **x402 payments settle on-chain on Base Sepolia.** The paid tools (`get_weather`, `get_ticket_history_report`) now pay through the official x402 SDK: `agent/x402.ts` signs the EIP-3009 authorization with the agent wallet and the public `x402.org` facilitator submits the transaction, while `agent/x402-server.ts` fronts `/api/weather` and `/api/ticket-report` with a standard paywall (402 → verify → settle → handler, 404 before 402 for unknown ticket ids). The settlement transaction hash and a Basescan link appear in the Activity log and on the report receipt.
+- **Ovelo verifies each x402 settlement itself.** `agent/x402-verify.ts` reads the settlement transaction's receipt back from Base Sepolia with viem and checks the USDC `Transfer` log — token, sender (the agent wallet), receiver (`0xDc672f03…5559`) and amount (`10000` base units). `payAndFetchOfficial` reports `verified`, `verifyReason` and `blockNumber` per payment, and the report receipt, the chat tool badge and the Activity log say "settled on-chain" only when that check passes. If it cannot confirm the transfer, the payment is shown honestly as **paid but not verified on-chain** — never as a failure, and never as free. The read is polled for about 20 seconds to ride out the load-balanced public RPC's lag, and it never throws for "not verified".
+
+### Changed
+
+- **"settled on-chain" is no longer a hardcoded label.** It is now shown only after Ovelo's own on-chain verification (above); an unconfirmed payment gets a neutral/amber "paid, not verified" state instead.
+
+### Removed
+
+- The hand-rolled demo payment flow (`payAndFetch` / `verifyPayment` in `agent/wallet.ts`), which signed a message the API only verified and never settled. The wallet module now only creates, holds and reads the wallet.
 
 ### Planned
 
-- **Settle x402 payments on-chain on Base Sepolia.** Today the x402 flows (weather and ticket-history report) only sign and verify a payment message; no x402 payment is submitted on-chain.
 - **Verify the escrow contract on Basescan.** Publish the source for the deployed contract so anyone can read it on the explorer.
+- **A spend limit for the paid routes.** Cap what the x402 paid APIs can spend from the agent wallet (today there is none).
 - **Richer gate scanner integration.** Replace the demo **Scan at gate** button with something closer to a real venue check-in.
 - **More demo events.** Add more fictional events and tickets beyond **Demo Music Night 2026**.
 

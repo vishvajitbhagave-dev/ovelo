@@ -11,7 +11,7 @@
  * resets when the page is refreshed.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Activity as ActivityIcon, ExternalLink, RefreshCw } from "lucide-react";
+import { Activity as ActivityIcon, ExternalLink, RefreshCw, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ActivityEvent, ActivityOutcome } from "@/lib/activity";
 
@@ -134,7 +134,9 @@ function ActivityRow({ event, status }: { event: ActivityEvent; status: EscrowSt
       ? { address: status?.contract, label: "escrow contract" }
       : event.counterparty === "agent"
         ? { address: status?.address, label: "agent wallet" }
-        : null;
+        : event.counterparty === "apiOwner"
+          ? { address: event.counterpartyAddress, label: "API owner" }
+          : null;
 
   return (
     <li className="card-surface p-4 md:p-5">
@@ -149,7 +151,22 @@ function ActivityRow({ event, status }: { event: ActivityEvent; status: EscrowSt
           {event.amount && (
             <span className="font-medium">
               {event.amount} test USDC
-              {event.amountNote && <span className="font-normal text-muted-foreground"> ({event.amountNote})</span>}
+              {event.amountNote && (
+                <span
+                  className={cn(
+                    "font-normal",
+                    event.verified === false ? "text-medium" : "text-muted-foreground"
+                  )}
+                >
+                  {" "}({event.amountNote})
+                </span>
+              )}
+              {event.verified === false && (
+                <TriangleAlert
+                  className="ml-1 inline size-3 align-middle text-medium"
+                  aria-hidden="true"
+                />
+              )}
             </span>
           )}
           {recipient && (

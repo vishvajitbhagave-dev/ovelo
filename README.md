@@ -65,7 +65,7 @@ The agent has **9 tools** in total: **7 core tools** and **2 starter demo tools*
 | `get_my_wallet` | Returns the agent wallet address and its Base Sepolia ETH balance. | Free | Core tool (inherited from the starter kit) |
 | `roll_dice` | Rolls a dice with the given number of sides. | Free | Starter demo tool |
 
-The x402 tools **sign** a payment message with the agent's wallet and the API verifies the signature; today **no x402 payment is settled on-chain** (see [Future scope](#future-scope-for-week-2-and-week-3)). Only `fund_escrow` sends real transactions.
+The x402 tools pay their 0.01 USDC price with the agent's wallet through the official x402 SDK. The agent signs an EIP-3009 authorization and the **public `x402.org` facilitator** submits it, so the payment is **settled on-chain on Base Sepolia**; **Ovelo then confirms it itself** — `agent/x402-verify.ts` reads the settlement transaction's receipt back from the chain and checks the USDC `Transfer` log (token `0x036CbD…CF7e`, sender the agent wallet, receiver `0xDc672f03…5559`, amount `10000` base units). The UI and the Activity log only say **"settled on-chain"** once that check passes; if it cannot confirm the transfer, the payment is shown honestly as **paid but not verified on-chain**. `fund_escrow` sends the escrow transactions itself.
 
 ## Supported AI models
 
@@ -111,16 +111,18 @@ flowchart TD
   Loop --> PaidTools
   Loop --> FundTool
   ReadTools --> Rules
-  PaidTools -->|"X-PAYMENT 0.01 USDC — signed, not settled on-chain"| X402
+  PaidTools -->|"PAYMENT-SIGNATURE 0.01 USDC - settled by the x402.org facilitator on Base Sepolia"| X402
   FundTool --> EscrowMod
   EscrowAPI --> EscrowMod
   EscrowMod -->|"signs with"| Buyer
   EscrowMod -->|"approve + fund"| Chain
+  X402 -->|"settles via facilitator"| Chain
+  Verify["agent/x402-verify.ts - viem reads the receipt + USDC Transfer log"] -.->|"confirms the settlement"| Chain
   Scanner -->|"checkIn"| Chain
   Chain -->|"release 1 test USDC"| Seller
 ```
 
-The browser only talks to Next.js API routes. The Gemini agent loop runs on the server and calls the tools, which reach the rule engine, the x402 paid APIs and the escrow module. Only `agent/escrow.ts` holds keys and sends real Base Sepolia testnet transactions, signed by the agent/buyer wallet; the demo scanner wallet releases the funds to the demo seller. x402 payments are signed and verified but not settled on-chain.
+The browser only talks to Next.js API routes. The Gemini agent loop runs on the server and calls the tools, which reach the rule engine, the x402 paid APIs and the escrow module. The agent wallet key is the only one: `agent/escrow.ts` signs real Base Sepolia testnet transactions with it, and `agent/x402.ts` signs the EIP-3009 payment authorizations that the facilitator settles on-chain (`agent/x402-server.ts` is the other side: the demo APIs that charge the price). After a paid call, `agent/x402-verify.ts` reads the settlement transaction back from Base Sepolia and checks the USDC transfer itself before the payment is called "settled on-chain". The demo scanner wallet releases the funds to the demo seller.
 
 ### Ticket check and escrow lifecycle
 
@@ -147,7 +149,7 @@ The risk level comes only from the fixed rules in code: HIGH is always refused, 
 - **MEDIUM needs a human.** Ovelo never funds a MEDIUM ticket by itself; a person must press **Approve and fund escrow**.
 - **LOW is funded by the agent.** For LOW-risk tickets the agent may place the escrow itself.
 - **Activity log.** An **Activity** tab lists, in plain words, every decision and payment of this browser session (risk checks, the paid x402 report, escrow funding, refusals, human approvals, scans, rejections and refunds), newest first, with real amounts, shortened recipients and Basescan links. It is kept in memory only and resets when the page is refreshed.
-- **Paid history report via x402.** The agent buys extra background (issuer, face value, ownership timeline, scan status) by signing a 0.01 USDC payment message that the API verifies.
+- **Paid history report via x402.** The agent buys extra background (issuer, face value, ownership timeline, scan status) by paying a 0.01 USDC x402 price with its own wallet. The payment is settled on Base Sepolia by the public `x402.org` facilitator, and **Ovelo verifies it itself**: it reads the settlement transaction's receipt back from the chain and checks the USDC `Transfer` log (token, sender, receiver `0xDc672f03…5559`, amount `10000`). The receipt chip and the Activity log say "settled on-chain" only when that check passes; otherwise they say the payment is not verified on-chain. Either way a Basescan link to the transaction is shown.
 - **Real on-chain escrow on Base Sepolia.** The money is held by [`OveloEscrow`](escrow/contracts/OveloEscrow.sol) at [`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E) (chain id 84532), with test money only.
 - **Demo gate scanner.** A **Scan at gate** button calls `checkIn` from a trusted demo scanner wallet and releases the money to the seller.
 - **A second scan is rejected.** Ovelo simulates the second `checkIn` first, so no transaction is sent and the contract's own reason is shown in plain words.
@@ -203,7 +205,6 @@ Live demo: https://ovelo-five.vercel.app/
 
 **Planned (not built yet):**
 
-- **Settle x402 payments on-chain on Base Sepolia.** Today the x402 flows (weather and ticket-history report) only sign and verify a payment message; no x402 payment is submitted on-chain. This would move that onto a real settlement.
 - **Verify the escrow contract on Basescan.** Publish the source for the deployed contract so anyone can read it on the explorer.
 - **Richer gate scanner integration.** Replace the demo **Scan at gate** button with something closer to a real venue check-in.
 - **More demo events.** Add more fictional events and tickets beyond **Demo Music Night 2026**.
@@ -276,7 +277,7 @@ Use **test wallets only** for `WALLET_PRIVATE_KEY` and `SCANNER_PRIVATE_KEY`. Ne
 Unit tests run on Node's built-in test runner — no extra packages, no network, no API keys and no blockchain calls.
 
 ```bash
-npm test          # risk rules, escrow policy/guards, model allowlist, activity log
+npm test          # risk rules, escrow policy/guards, model allowlist, activity log, x402 helpers
 npx tsc --noEmit  # typecheck
 npm run build     # production build
 
@@ -292,11 +293,13 @@ npm test          # OveloEscrow contract tests (local in-memory chain)
 - Deterministic ids: `runIdFor` is stable inside one 10-minute funding window and changes across windows or tickets; `ticketKeyFor` is a deterministic 32-byte hash.
 - The deal amount is always exactly 1 test USDC, the guard thresholds (cooldown `20s`, ETH floor, `3 USDC` floor, `40` deal cap) and `DEAL_STATUS`.
 - The model allowlist (`agent/models.ts`): allowed ids pass, unknown ids are rejected, and the default (`gemini-flash-lite-latest`) is used when none is given.
-- The activity log (`lib/activity.ts`): tool steps become the right plain-English events.
+- **The activity log (`lib/activity.ts`)**: tool steps become the right plain-English events, including the paid report carrying its amount, recipient, settlement tx hash and Basescan link. A paid report is only logged as "settled on-chain" when its `verified` flag is set; otherwise it is logged as paid but not verified.
+- **The x402 on-chain verifier (`agent/x402-verify.ts`)**: `verifyX402Receipt` is checked against fake receipts (no network) for the success case and for a wrong recipient, wrong sender, wrong amount, wrong token, a failed status, a missing log, and a different event with the same shape; the polling read is tested by injecting a fake receipt source so a lagging RPC is exercised without any chain call.
+- **The x402 helpers**: `formatUsdcLabel` and `extractSettlement` (`agent/x402.ts`), and the paywall's route config, payer decoding and unpaid body (`agent/x402-server.ts`).
 
 **What the tests do not cover**
 
-- Anything that needs the network or a key: `runAgent` and the Gemini calls, the x402 `payAndFetch` / `verifyPayment` flow, and every escrow function that reads the chain or sends a transaction (`fundEscrow`, `scanAtGate`, `refundDeal`, `getEscrowStatus`, `listOpenDeals`). The guard comparisons in `fundEscrow` (cooldown, balance floor, deal cap) run next to those chain reads, so only their threshold constants are asserted here.
+- Anything that needs the network or a key: `runAgent` and the Gemini calls, the x402 `payAndFetchOfficial` purchase (the facilitator does the submitting, and the verifier then reads the receipt back from the chain), and every escrow function that reads the chain or sends a transaction (`fundEscrow`, `scanAtGate`, `refundDeal`, `getEscrowStatus`, `listOpenDeals`). The guard comparisons in `fundEscrow` (cooldown, balance floor, deal cap) run next to those chain reads, so only their threshold constants are asserted here.
 - The React UI and the API routes.
 - `escrow/` is covered separately by the Hardhat contract tests.
 
@@ -377,7 +380,7 @@ A **LOW** result means only that the fixed rules found nothing wrong on the demo
 
 - **A dishonest demo scanner.** The gate check-in is trusted: whoever holds the demo scanner key could release the funds. There is no independent check that a real ticket was shown.
 - **One shared public demo wallet.** The agent/buyer wallet is a single shared demo wallet, not a wallet per user.
-- **x402 payments are signed but not settled on-chain yet (planned).** The weather and ticket-report demos only sign and verify a payment message; no x402 payment is submitted on-chain.
+- **x402 settlement is submitted by a third party, and has no spend limit.** The paid APIs are settled by the public `x402.org` facilitator, not by Ovelo, so a dishonest or broken facilitator is a risk outside our control. Ovelo now re-reads each settlement transaction itself (receipt + USDC `Transfer` log) before calling it settled, but that only confirms what happened after the fact — it does not stop the payment. The paid routes also have **no spend limit or rate limit yet**: every call spends a real 0.01 test USDC, and the agent and receiver wallets are **throwaway test wallets**, not per-user wallets.
 - **The contract is not audited and not yet verified on Basescan (planned).** The source is not published on the explorer yet.
 - **Demo tickets only.** Ovelo knows only six made-up tickets and cannot check a real ticket, seller or event company.
 - **A lagging public RPC.** Answers rely on a public Base Sepolia RPC that can return stale reads; the app polls reads to reduce this, but a value can still be a moment behind.
@@ -389,7 +392,7 @@ See the [on-chain proof](docs/PROOF.md) for the real testnet transactions, [`SEC
 1. **It only works on fake tickets.** The six demo tickets are made up. Ovelo has no connection to any real ticketing system.
 2. **It cannot verify real tickets or real companies.** It cannot look up a real event, check a real barcode, confirm a real issuer, or find out whether a real seller has been caught scamming before.
 3. **The escrow is testnet-only with a trusted demo scanner.** It runs on Base Sepolia with test money, one shared demo agent wallet, and a scanner we control. The check-in is a button, not a real venue scan. The contract is unaudited and not meant for real funds. Amounts are scaled down: a deal is always 1 test USDC, not the ticket's real price.
-4. **The x402 payments are signed but not sent on-chain.** The weather and ticket-report demos sign a payment message with the agent's wallet and the API verifies the signature, but no transaction is submitted for those. (The escrow, by contrast, does send real testnet transactions.)
+4. **The x402 settlements are submitted by a public facilitator, then re-checked by Ovelo.** Each weather or report call spends a real 0.01 test USDC from the agent wallet, but the transaction is submitted for us by `https://x402.org/facilitator` (a third party). Ovelo then reads the transaction's receipt back from Base Sepolia and checks the USDC transfer itself before it says "settled on-chain"; if that check cannot confirm the transfer, the payment is shown as paid but not verified. The paid routes currently have **no spend limit**, and both wallets (agent and receiver) are throwaway test wallets. The escrow, by contrast, builds and sends its own testnet transactions.
 5. **The written explanation is still written by the AI.** The level, score and reasons all come from code, but the wording around them comes from Gemini. The UI renders the risk fields directly rather than trusting the prose.
 
 Don't use Ovelo to make a real purchase decision.

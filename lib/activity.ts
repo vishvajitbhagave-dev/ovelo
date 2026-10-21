@@ -12,7 +12,7 @@
 export type ActivityOutcome = "done" | "refused" | "waiting";
 
 /** Which known address the money moved to. Resolved to a real address in the UI. */
-export type ActivityCounterparty = "escrow" | "agent";
+export type ActivityCounterparty = "escrow" | "agent" | "apiOwner";
 
 export type ActivityEvent = {
   id: string;
@@ -26,12 +26,22 @@ export type ActivityEvent = {
   reason?: string;
   /** Amount in test USDC, e.g. "1" or "0.01". */
   amount?: string;
-  /** Optional note about the amount (e.g. signed x402 demo payment). */
+  /** Optional note about the amount (e.g. settled x402 payment). */
   amountNote?: string;
   counterparty?: ActivityCounterparty;
+  /** Recipient address when it is neither the escrow nor the agent wallet. */
+  counterpartyAddress?: string;
   hash?: string;
   /** Basescan link, when a real transaction exists. */
   url?: string;
+  /**
+   * TRUE only when Ovelo read the transaction receipt back from the chain and
+   * found the expected USDC Transfer. Undefined/false means the facilitator
+   * reported the payment but our own check did not confirm it.
+   */
+  verified?: boolean;
+  /** Block the settlement landed in, only when `verified` is true. */
+  blockNumber?: string;
 };
 
 /** Minimal shape of a chat tool step (matches Step in components/check-tab.tsx). */
@@ -78,13 +88,30 @@ export function activityFromSteps(steps: RawStep[] | undefined): ActivityEvent[]
       const amount = paymentAmountUsdc(r?.payment?.amount);
       if (amount) {
         const ticketId = str(r?.data?.ticket?.id) ?? str(step?.args?.ticketId);
+        const hash = str(r?.payment?.txHash);
+        const blockNumber = str(r?.payment?.blockNumber);
+        // "settled on-chain" is only claimed when Ovelo itself read the receipt
+        // back from the chain and found the expected USDC Transfer. Otherwise the
+        // payment is still logged (the money may have moved) but honestly labelled.
+        const verified = Boolean(hash) && r?.payment?.verified === true;
+
         out.push(
           makeActivityEvent({
             title: ticketId ? `Bought the paid history report for ${ticketId}` : "Bought the paid history report",
             outcome: "done",
             ticketId,
             amount,
-            amountNote: "signed x402 demo payment, not sent on-chain",
+            amountNote: verified
+              ? `settled on-chain via x402${blockNumber ? ` · block ${blockNumber}` : ""}`
+              : hash
+                ? "paid — facilitator reported success but not verified on-chain"
+                : undefined,
+            counterparty: "apiOwner",
+            counterpartyAddress: str(r?.payment?.to),
+            hash,
+            url: str(r?.payment?.url),
+            verified: hash ? verified : undefined,
+            blockNumber: verified ? blockNumber : undefined,
           })
         );
       }

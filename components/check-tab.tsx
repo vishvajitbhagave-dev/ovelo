@@ -8,7 +8,8 @@
  * results:
  *
  *   - RiskCard            <- check_ticket_risk result (rules live in code)
- *   - receipt chip        <- the payment object the wallet actually signed
+ *   - receipt chip        <- the payment object, confirmed from its own
+ *                            transaction receipt by agent/x402-verify.ts
  *   - history timeline    <- the paid report's timeline
  *   - issuer / owners     <- the paid report
  *   - "Ovelo says"        <- the agent's written answer
@@ -122,7 +123,8 @@ function LoadingState({ id }: { id: string }) {
         <div>
           <p className="font-semibold">Paying for the history report and running the risk rules…</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            This buys a real 0.01 USDC demo payment, then scores the ticket in code.
+            This settles a real 0.01 USDC payment on Base Sepolia, reads its transaction receipt back from the
+            chain to verify it, then scores the ticket in code.
           </p>
         </div>
       </div>
@@ -225,15 +227,49 @@ function DoneCheck({
         />
       )}
 
-      {/* 2. The real payment receipt — only if a payment was actually signed */}
+      {/* 2. The real payment receipt — only if a payment was actually made.
+          "settled on-chain" is said ONLY when Ovelo's own verifier read the
+          transaction receipt back from Base Sepolia and found the USDC Transfer. */}
       {payment?.amount && (
-        <div className="inline-flex flex-wrap items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm">
-          <Receipt className="size-4 text-primary" />
+        <div
+          className={cn(
+            "inline-flex flex-wrap items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm",
+            payment.verified === true ? "" : "border-medium/70 bg-medium-soft/60"
+          )}
+        >
+          {payment.verified === true ? (
+            <Receipt className="size-4 text-primary" />
+          ) : (
+            <TriangleAlert className="size-4 text-medium" />
+          )}
           <span>
             Paid {payment.amount} for the ticket history report{" "}
-            <span className="text-muted-foreground">(signed demo payment, not sent on-chain)</span>
+            {payment.verified === true ? (
+              <span className="text-muted-foreground">
+                (settled on-chain{payment.blockNumber ? ` · block ${payment.blockNumber}` : ""})
+              </span>
+            ) : (
+              <span className="font-medium text-medium">
+                (facilitator reported success — not verified on-chain)
+              </span>
+            )}
           </span>
+          {payment.url && (
+            <a
+              href={payment.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-primary underline underline-offset-4"
+            >
+              view tx <ExternalLink className="size-3" />
+            </a>
+          )}
         </div>
+      )}
+
+      {/* Why our own chain check could not confirm the payment, in plain words. */}
+      {payment?.amount && payment.verified !== true && payment.verifyReason && (
+        <p className="text-xs text-muted-foreground">Ovelo&apos;s own check: {payment.verifyReason}</p>
       )}
 
       {/* Report problem, stated plainly */}

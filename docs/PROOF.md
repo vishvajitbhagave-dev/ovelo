@@ -3,7 +3,9 @@
 Ovelo's escrow is real, but it runs on a **test network with test money only**.
 Every value on this page is copied from the public records in
 [`escrow/deployments/`](../escrow/deployments/) — nothing here is add-libbed or
-estimated.
+estimated. The [x402 settlement](#x402-settlement-paid-api-call) below is read back
+from the chain by Ovelo's own verifier (`agent/x402-verify.ts`), which is the same
+check the app runs before it calls a payment "settled on-chain".
 
 - **Network:** Base Sepolia testnet (chain id **84532`)
 - **Escrow contract:** [`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E)
@@ -24,6 +26,37 @@ estimated.
 The refunds are recorded together in `escrow/deployments/refund-baseSepolia.json` (blocks 47883398, 47883400 and 47883401). That file also records the escrow's test-USDC balance going from `3000000` to `0` and the agent wallet's balance going from `14000000` to `17000000` — the three 1 USDC refunds.
 
 `escrow/deployments/smoke-test-baseSepolia.json` also records a **rejected second scan**: the contract reverted `checkIn` for deal 1 with `"OveloEscrow: deal already checked in - rejected second scan"`. Because it reverted, no transaction was sent — which is why there is no hash for it in the table.
+
+## x402 settlement (paid API call)
+
+The paid demo APIs (`/api/weather`, `/api/ticket-report`) charge 0.01 test USDC per
+request. The agent signs an EIP-3009 authorization and the **public `x402.org`
+facilitator** submits the transaction that settles it on Base Sepolia. Ovelo then
+**verifies the settlement itself**: `agent/x402-verify.ts` reads the transaction's
+receipt back from the chain and checks the USDC `Transfer` log (token
+`0x036CbD…CF7e`, sender the agent wallet, receiver `0xDc672f03…5559`, amount
+`10000` base units). The demo only says "settled on-chain" when that check passes.
+
+The most recent real call was made on 2026-10-21 and read back from the chain
+(the same check the app performs):
+
+| Action | Basescan transaction | What it proves | Date |
+| :--- | :--- | :--- | :--- |
+| x402 settlement (0.01 USDC) | [`0x51148c49…24b76`](https://sepolia.basescan.org/tx/0x51148c491faabafa22965265735947c5152efcdd47e5bbe4e69c8d329f624b76) | The facilitator submitted the agent wallet's EIP-3009 authorization: a `Transfer` of `10000` base units (0.01 test USDC) from the agent wallet `0x865b…7683` to the payee `0xDc672f03…5559`, in **block 48411594** with status success. | 2026-10-21 |
+
+Earlier verified settlements include the first one, in block 48404488
+([`0xb79eab05…1f7763`](https://sepolia.basescan.org/tx/0xb79eab05b4442f0a1678dc57eca889bdf2a16151b247a38def68889a231f7763)).
+For that first call the token balances moved exactly as expected: the agent wallet
+went from `3` to `2.99` USDC and the payee from `0` to `0.01` USDC. The transaction
+was submitted by the facilitator's relayer (`0xd407…f1bf`); the payer only signed
+the authorization.
+
+**Honest limits.** The transaction is submitted by the public `x402.org`
+facilitator — a third party — so Ovelo's check confirms what happened *after* the
+fact; it does not control or prevent the payment. The paid routes have **no spend
+limit or rate limit yet** (every call spends a real 0.01 test USDC), and both
+wallets — the agent/buyer wallet and the receiver `0xDc672f03…5559` — are
+**throwaway test wallets**. It is all Base Sepolia test money.
 
 ## How to verify yourself
 

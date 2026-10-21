@@ -556,13 +556,27 @@ function ModelPicker({
 /* ── One tool step: expandable, with the real Paid badge ── */
 function ToolCall({ step }: { step: Step }) {
   const payment = step.result?.payment;
+  // The payment object is only presented as a verified settlement when OUR code
+  // read the transaction receipt back from the chain. Otherwise the facilitator
+  // reported it as paid, but Ovelo could not confirm the money moved — say so.
+  const paidVerified = Boolean(payment) && payment.verified === true;
+  const paidUnverified = Boolean(payment) && payment.verified !== true;
   return (
     <Collapsible className="w-full overflow-hidden rounded-xl border bg-card font-mono text-xs">
       <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted">
         <ChevronRight className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
         <span className="text-muted-foreground uppercase">Tool</span>
         <span className="truncate text-primary">{step.tool}</span>
-        {payment && <Badge className="ml-auto bg-blue font-mono text-white uppercase">Paid {payment.amount}</Badge>}
+        {paidVerified && (
+          <Badge className="ml-auto bg-low-soft font-mono text-low uppercase">
+            Paid {payment.amount} · verified
+          </Badge>
+        )}
+        {paidUnverified && (
+          <Badge className="ml-auto bg-medium-soft font-mono text-medium uppercase" title={payment.verifyReason}>
+            Paid {payment.amount} · not verified
+          </Badge>
+        )}
         {step.error && !payment && <Badge variant="destructive" className="ml-auto font-mono uppercase">Failed</Badge>}
       </CollapsibleTrigger>
       <CollapsibleContent className="flex flex-col gap-2 border-t px-3 py-2">

@@ -1,28 +1,25 @@
 /**
  * THE AGENT'S WALLET
  *
- * The agent owns a wallet (a private key). It uses it to sign payments,
- * so it can pay for APIs on its own. This is the "x402" idea:
- *
- *   1. Agent calls an API         ->  API answers "402 Payment Required" + a price
- *   2. Agent signs a payment      ->  with its wallet
- *   3. Agent retries with payment ->  API checks the signature and answers 200 OK
+ * The agent owns a wallet (a private key). It is what pays for things: the
+ * escrow sends real testnet transactions with it, and the x402 payer
+ * (agent/x402.ts) signs the paid-API purchases with it.
  *
  * You create the wallet with the "Create wallet" button on the page.
- * It is saved in `.agent-wallet.json` so it survives restarts.
+ * It is saved in `.agent-wallet.json` so it survives restarts. A
+ * `WALLET_PRIVATE_KEY` in `.env` wins over the file.
  *
- * Payments here are signed but NOT sent on-chain (it's a demo, no real money).
+ * This file only holds, creates and reads the wallet. The payment flows live
+ * in agent/escrow.ts (escrow) and agent/x402.ts (paid APIs).
  */
 import fs from "fs";
 import path from "path";
-import { createPublicClient, formatEther, http, verifyMessage, type Address, type Hex } from "viem";
+import { createPublicClient, formatEther, http, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 
 const WALLET_FILE = path.join(process.cwd(), ".agent-wallet.json");
 const chain = createPublicClient({ chain: baseSepolia, transport: http() });
-
-export type Payment = { from: Address; to: Address; amount: string; asset: string; resource: string; nonce: string };
 
 /** The wallet from .env or .agent-wallet.json, or null if none was created yet. */
 function loadAccount() {
@@ -59,44 +56,4 @@ export function getWalletAddress() {
 export async function getWalletBalance() {
   const wei = await chain.getBalance({ address: requireAccount().address });
   return `${formatEther(wei)} ETH`;
-}
-
-/** Fetch a URL. If it asks for payment (402), sign one with the wallet and try again. */
-export async function payAndFetch(url: string) {
-  const first = await fetch(url);
-  if (first.status !== 402) return { data: await first.json() };
-
-  const account = requireAccount();
-  const { price, asset, payTo } = await first.json();
-  const payment: Payment = {
-    from: account.address,
-    to: payTo,
-    amount: price,
-    asset,
-    resource: new URL(url).pathname,
-    nonce: crypto.randomUUID(),
-  };
-  const signature = await account.signMessage({ message: JSON.stringify(payment) });
-  const header = Buffer.from(JSON.stringify({ payment, signature })).toString("base64");
-
-  const paid = await fetch(url, { headers: { "X-PAYMENT": header } });
-  return {
-    data: await paid.json(),
-    payment: { status: paid.status, amount: `${price} ${asset}`, to: payTo, signature: `${signature.slice(0, 18)}...` },
-  };
-}
-
-/** Used by the API: is this X-PAYMENT header a real, signed payment? */
-export async function verifyPayment(header: string | null) {
-  if (!header) return null;
-  try {
-    const { payment, signature } = JSON.parse(Buffer.from(header, "base64").toString()) as {
-      payment: Payment;
-      signature: Hex;
-    };
-    const valid = await verifyMessage({ address: payment.from, message: JSON.stringify(payment), signature });
-    return valid ? payment : null;
-  } catch {
-    return null;
-  }
 }
