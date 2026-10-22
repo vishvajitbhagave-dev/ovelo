@@ -13,3 +13,8 @@ escrow/artifacts
 escrow/cache
 escrow/typechain-types
 escrow/.env
+
+# Model comparison runner artifacts (background logs; not results)
+experiments/model-comparison/run.log
+experiments/model-comparison/run.err.log
+experiments/model-comparison/run.pid
