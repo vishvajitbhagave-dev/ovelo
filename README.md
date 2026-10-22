@@ -205,7 +205,6 @@ Live demo: https://ovelo-five.vercel.app/
 
 **Planned (not built yet):**
 
-- **Verify the escrow contract on Basescan.** Publish the source for the deployed contract so anyone can read it on the explorer.
 - **Richer gate scanner integration.** Replace the demo **Scan at gate** button with something closer to a real venue check-in.
 - **More demo events.** Add more fictional events and tickets beyond **Demo Music Night 2026**.
 
@@ -310,6 +309,7 @@ CI runs all of this on every push and pull request to `main`: see [`.github/work
 The escrow is **real**, and runs on the Base Sepolia **test network** with **test money** only.
 
 - **Contract:** [`OveloEscrow`](escrow/contracts/OveloEscrow.sol) at `0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E` (chain id 84532).
+- OveloEscrow source is verified on Basescan: https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E#code
 - **Token:** test USDC at `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (6 decimals).
 - **Scanner:** the contract only lets one trusted address call `checkIn` — the demo scanner.
 - **Seller:** every demo deal pays the same demo seller `0x3c86C6a22564E1515E4628426a3ca6a03C28c04d`.
@@ -381,7 +381,7 @@ A **LOW** result means only that the fixed rules found nothing wrong on the demo
 - **A dishonest demo scanner.** The gate check-in is trusted: whoever holds the demo scanner key could release the funds. There is no independent check that a real ticket was shown.
 - **One shared public demo wallet.** The agent/buyer wallet is a single shared demo wallet, not a wallet per user.
 - **x402 settlement is submitted by a third party, and its spend limit is best-effort.** The paid APIs are settled by the public `x402.org` facilitator, not by Ovelo, so a dishonest or broken facilitator is a risk outside our control. Ovelo now re-reads each settlement transaction itself (receipt + USDC `Transfer` log) before calling it settled, but that only confirms what happened after the fact — it does not stop the payment. The paid routes do now have a **spend limit** (`agent/x402-limits.ts`): at most **10 paid calls a rolling hour**, at most **3 a rolling minute**, and a **0.5 test USDC floor** on the agent wallet. The floor is a live chain read and always holds; the two time limits are counted in memory, so on serverless they are **per instance and reset on cold start** — a railing, not a lock. Every call spends a real 0.01 test USDC, and the agent and receiver wallets are **throwaway test wallets**, not per-user wallets.
-- **The contract is not audited and not yet verified on Basescan (planned).** The source is not published on the explorer yet.
+- **The contract is not audited.** Its source **is** verified on Basescan (see the link above), but verification only means the published source matches the deployed bytecode — it is not a security audit.
 - **Demo tickets only.** Ovelo knows only six made-up tickets and cannot check a real ticket, seller or event company.
 - **A lagging public RPC.** Answers rely on a public Base Sepolia RPC that can return stale reads; the app polls reads to reduce this, but a value can still be a moment behind.
 

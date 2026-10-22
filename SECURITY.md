@@ -35,4 +35,4 @@ Out of scope:
 
 ## The contract is not audited
 
-`OveloEscrow` is a small demo contract written for a hackathon. It has **not** been audited, it has **not** been verified on Basescan yet, and it is **not** intended to hold real value. Do not send real assets to it and do not reuse it for anything of value.
+`OveloEscrow` is a small demo contract written for a hackathon. It has **not** been audited and is **not** intended to hold real value. Its source **is** verified on Basescan ([`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E#code`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E#code)), which only means the published source matches the deployed bytecode — it is not a security audit. Do not send real assets to it and do not reuse it for anything of value.

@@ -15,6 +15,7 @@ Work for Week 2 and Week 3. It mirrors the future scope in the
 - **x402 payments settle on-chain on Base Sepolia.** The paid tools (`get_weather`, `get_ticket_history_report`) now pay through the official x402 SDK: `agent/x402.ts` signs the EIP-3009 authorization with the agent wallet and the public `x402.org` facilitator submits the transaction, while `agent/x402-server.ts` fronts `/api/weather` and `/api/ticket-report` with a standard paywall (402 → verify → settle → handler, 404 before 402 for unknown ticket ids). The settlement transaction hash and a Basescan link appear in the Activity log and on the report receipt.
 - **Ovelo verifies each x402 settlement itself.** `agent/x402-verify.ts` reads the settlement transaction's receipt back from Base Sepolia with viem and checks the USDC `Transfer` log — token, sender (the agent wallet), receiver (`0xDc672f03…5559`) and amount (`10000` base units). `payAndFetchOfficial` reports `verified`, `verifyReason` and `blockNumber` per payment, and the report receipt, the chat tool badge and the Activity log say "settled on-chain" only when that check passes. If it cannot confirm the transfer, the payment is shown honestly as **paid but not verified on-chain** — never as a failure, and never as free. The read is polled for about 20 seconds to ride out the load-balanced public RPC's lag, and it never throws for "not verified".
 - **A spend limit on the paid x402 calls.** `agent/x402-limits.ts` runs before any signing in `payAndFetchOfficial` and refuses with "Paid call limit reached, try again later" when: more than **10 paid calls** have been made in a rolling hour, more than **3** in a rolling minute, or the agent wallet holds less than **0.5 test USDC** (`balanceOf`, read-only). The limits live in `agent/x402-config.ts` (`maxPaidCallsPerHour`, `maxPaidCallsPerMinute`, `minAgentUsdcBaseUnits`). A refused call moves no money and touches no network, and the free/read-only tools are unaffected. **Honest caveat:** the two time limits are counted in memory, so on Vercel they are per serverless instance and reset on cold start — best-effort, not a hard guarantee. The balance floor is a chain read on every call, so it holds everywhere.
+- **`OveloEscrow`'s source is verified on Basescan.** The deployed contract's source is published and matches the deployed bytecode ([`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E#code`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E#code)). The verification inputs used (Solidity standard-JSON-input and a step-by-step checklist) are kept in `escrow/verification/`. Verification is not an audit.
 
 ### Changed
 
@@ -26,7 +27,6 @@ Work for Week 2 and Week 3. It mirrors the future scope in the
 
 ### Planned
 
-- **Verify the escrow contract on Basescan.** Publish the source for the deployed contract so anyone can read it on the explorer.
 - **Richer gate scanner integration.** Replace the demo **Scan at gate** button with something closer to a real venue check-in.
 - **More demo events.** Add more fictional events and tickets beyond **Demo Music Night 2026**.
 
