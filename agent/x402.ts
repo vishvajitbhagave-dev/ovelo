@@ -31,6 +31,12 @@
  * report data is kept and the payment is flagged with `verified: false` and a
  * `verifyReason` instead of being presented as settled.
  *
+ * A SPEND GUARD runs first (agent/x402-limits.ts): at most 10 paid calls a
+ * rolling hour, at most 3 a rolling minute, and at least 0.5 test USDC in the
+ * agent wallet. A refused call throws the honest "Paid call limit reached, try
+ * again later" and signs nothing. The time limits are in-memory/per-instance on
+ * serverless; the balance floor is a live chain read and always holds.
+ *
  * Importing this module pays for nothing; the wallet is only read when
  * payAndFetchOfficial() runs.
  */
@@ -47,6 +53,11 @@ import {
   findRecentTransfer,
   type SettlementTransfer,
 } from "./x402-verify";
+import {
+  checkX402SpendLimit,
+  type CheckX402SpendLimitOptions,
+  type X402SpendLimitResult,
+} from "./x402-limits";
 
 /** Same key source as agent/wallet.ts: env var first, then the wallet file. */
 const WALLET_FILE = path.join(process.cwd(), ".agent-wallet.json");
@@ -156,6 +167,11 @@ export type PayDeps = {
   findTransfer?: typeof findRecentTransfer;
   /** Our own receipt check. Defaults to verifyX402Settlement. */
   verify?: typeof verifyX402Settlement;
+  /**
+   * The spend guard, run BEFORE any signing. Defaults to checkX402SpendLimit.
+   * Tests pass a fake so the limits can be exercised with no chain read.
+   */
+  checkLimit?: (options: CheckX402SpendLimitOptions) => Promise<X402SpendLimitResult>;
 };
 
 type SettleHeader = {
@@ -242,9 +258,9 @@ function settleFailureError(attempt: Attempt, triedTwice: boolean): Error {
  * chain guard confirms no Transfer actually went through (see findRecentTransfer).
  * Each attempt signs a fresh authorization, so this can never double pay.
  *
- * Throws on: no wallet, transport errors, and any outcome that is not a settled
- * payment. `payment_required`, `none` handled as before; a twice-failed settle
- * throws the same honest error, saying it was tried twice.
+ * Throws on: no wallet, a spend-limit refusal, transport errors, and any outcome
+ * that is not a settled payment. `payment_required`, `none` handled as before; a
+ * twice-failed settle throws the same honest error, saying it was tried twice.
  * It never throws because verification failed — see verifyX402Settlement.
  */
 export async function payAndFetchOfficial(url: string, deps: PayDeps = {}): Promise<OfficialPayResult> {
@@ -255,6 +271,15 @@ export async function payAndFetchOfficial(url: string, deps: PayDeps = {}): Prom
   const payer = account.address;
   const verify = deps.verify ?? verifyX402Settlement;
   const findTransfer = deps.findTransfer ?? findRecentTransfer;
+  const checkLimit = deps.checkLimit ?? checkX402SpendLimit;
+
+  // SPEND GUARD, before anything is signed. Refuses (throws, moves no money) when
+  // the rolling-call limits are hit or the wallet is below the USDC floor. An
+  // allowed call is counted here, so a burst cannot slip past the minute cap.
+  const limit = await checkLimit({ payer });
+  if (!limit.allowed) {
+    throw new Error(limit.message);
+  }
 
   // Attempt 1 — the guard below bounds itself to the last few minutes of chain,
   // so it can only ever see a Transfer from around this attempt, never an old one.

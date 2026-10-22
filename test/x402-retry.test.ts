@@ -165,10 +165,14 @@ function guardFinds(tx = TX_OK): () => Promise<SettlementTransfer | null> {
   });
 }
 
+/** A fake spend guard that always allows (the retry tests are not about limits). */
+const limitAllow = async () => ({ allowed: true as const });
+
 function deps(overrides: Partial<PayDeps> & { fetch: typeof fetch }): PayDeps {
   return {
     account: fakeAccount(),
     verify: verifierOkay as PayDeps["verify"],
+    checkLimit: limitAllow as PayDeps["checkLimit"],
     ...overrides,
   };
 }
@@ -277,4 +281,27 @@ test("a missing wallet fails before any request, with no retry", async () => {
     /no wallet/i
   );
   assert.equal(state.requests, 0);
+});
+
+// ───────────────────────── 6. spend guard runs before signing ─────────────────────────
+
+test("a spend-limit refusal makes no request and signs nothing", async () => {
+  const { fetchImpl, state } = fakeFetch([{ kind: "settled", transaction: TX_OK }]);
+  await assert.rejects(
+    () =>
+      payAndFetchOfficial(
+        "http://localhost/api/weather",
+        deps({
+          fetch: fetchImpl,
+          checkLimit: (async () => ({
+            allowed: false,
+            code: "HOUR",
+            message: "Paid call limit reached, try again later. (at most 10 paid calls an hour)",
+          })) as PayDeps["checkLimit"],
+        })
+      ),
+    /Paid call limit reached/i
+  );
+  assert.equal(state.requests, 0, "no HTTP request was made");
+  assert.equal(state.signatures.length, 0, "nothing was signed");
 });

@@ -53,10 +53,16 @@ the authorization.
 
 **Honest limits.** The transaction is submitted by the public `x402.org`
 facilitator — a third party — so Ovelo's check confirms what happened *after* the
-fact; it does not control or prevent the payment. The paid routes have **no spend
-limit or rate limit yet** (every call spends a real 0.01 test USDC), and both
-wallets — the agent/buyer wallet and the receiver `0xDc672f03…5559` — are
-**throwaway test wallets**. It is all Base Sepolia test money.
+fact; it does not control or prevent the payment. The paid routes now have a
+**spend limit** (`agent/x402-limits.ts`): at most **10 paid calls a rolling
+hour**, at most **3 a rolling minute**, and a **0.5 test USDC floor** on the agent
+wallet (a read-only `balanceOf`). The floor is read from the chain on every call
+and always applies. The two time limits are counted in memory, so on a serverless
+host like Vercel they are **per instance and reset on cold start** — a best-effort
+railing, not a hard guarantee (a durable version would need a shared store, e.g.
+Vercel KV/Upstash, or counting recent USDC `Transfer`s on-chain). Both wallets —
+the agent/buyer wallet and the receiver `0xDc672f03…5559` — are **throwaway test
+wallets**. It is all Base Sepolia test money.
 
 ## How to verify yourself
 

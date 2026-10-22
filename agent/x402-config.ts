@@ -46,4 +46,19 @@ export const X402 = {
   maxTimeoutSeconds: 60,
   /** Where the paid APIs' USDC goes (public address of the throwaway x402 receiver wallet). */
   payTo: "0xDc672f03ec6226B31E45347402af077eCb595559",
+
+  // ── Spender safeguards (see agent/x402-limits.ts) ────────────────────────
+  /**
+   * At most this many paid x402 calls, in total, in any rolling hour. Keeps a
+   * runaway agent (or a loop) from draining the throwaway wallet.
+   */
+  maxPaidCallsPerHour: 10,
+  /** At most this many paid x402 calls in any rolling minute. */
+  maxPaidCallsPerMinute: 3,
+  /**
+   * Refuse a paid call when the agent wallet holds less than this much test
+   * USDC. Read-only chain read (balanceOf). Kept well above the 0.01 USDC
+   * price so a burst of calls cannot accidentally empty the wallet.
+   */
+  minAgentUsdcBaseUnits: "500000", // 0.5 USDC
 } as const;
