@@ -422,6 +422,8 @@ On PowerShell, use `Copy-Item .env.example .env`.
 
 Then open [http://localhost:3000](http://localhost:3000).
 
+**Health check:** `GET /api/health` returns a safe JSON snapshot (status, balances, open deals out of 40, facilitator reachability, allowed models, and boolean flags). It exposes no secrets, keys, or stack traces and is cached in memory for 30 seconds.
+
 Create a server-side test wallet with the **Create wallet** button. It writes `.agent-wallet.json` locally, which is ignored by git. For a full local end-to-end run, fund that agent wallet with at least 3 test USDC (for x402 and the 1 test USDC escrow) and test ETH for gas from a Base Sepolia faucet. The seller receives the escrowed USDC and does not need a starting balance. Set `SCANNER_PRIVATE_KEY` to a funded test wallet to run the scan route; the scanner needs test ETH for gas.
 
 Restart the dev server after changing `.env`.
@@ -455,7 +457,7 @@ cd escrow
 npm test
 ```
 
-The app suite currently has **76 tests**, all passing. It covers:
+The app suite currently has **81 tests**, all passing. It covers:
 
 - risk rules and all six demo tickets;
 - funding policy, deterministic run ids, ticket keys, guard constants;
@@ -464,7 +466,8 @@ The app suite currently has **76 tests**, all passing. It covers:
 - x402 pricing and the 402 body;
 - independent receipt verification, wrong token/sender/recipient/amount/reverted/malformed logs;
 - x402 spend limits and the 0.5 USDC floor;
-- the safe retry path, double-pay guard, and no-retry cases.
+- the safe retry path, double-pay guard, and no-retry cases;
+- health-report status, balance floors, facilitator/read failure handling, and secret-field safety.
 
 It does **not** cover live network calls, real Gemini responses, real paid purchases, the escrow contract's on-chain functions, or the UI/API routes end to end. Those are covered by the recorded testnet proof where possible. The escrow contract has its own Hardhat tests in `escrow/test/`.
 
