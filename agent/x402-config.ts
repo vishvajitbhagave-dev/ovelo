@@ -9,6 +9,18 @@
  * Imported by agent/x402-server.ts (what the APIs charge and where the money
  * goes) and agent/x402.ts (the price label shown back to the caller).
  */
+/**
+ * Paid ticket-report cache (see agent/report-cache.ts).
+ *
+ * A successful report is reused for 10 minutes, with at most 50 entries kept
+ * per server instance. This is an in-memory convenience, not a shared store:
+ * on serverless it resets on a cold start and does not span instances.
+ */
+export const REPORT_CACHE = {
+  ttlMs: 10 * 60 * 1000,
+  maxEntries: 50,
+} as const;
+
 export const X402 = {
   /**
    * CAIP-2 network id for Base Sepolia, as used by the x402 packages.

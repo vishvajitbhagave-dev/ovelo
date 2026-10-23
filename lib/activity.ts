@@ -42,6 +42,8 @@ export type ActivityEvent = {
   verified?: boolean;
   /** Block the settlement landed in, only when `verified` is true. */
   blockNumber?: string;
+  /** True when this event describes a cached report, not a new payment. */
+  reused?: boolean;
 };
 
 /** Minimal shape of a chat tool step (matches Step in components/check-tab.tsx). */
@@ -85,9 +87,37 @@ export function activityFromSteps(steps: RawStep[] | undefined): ActivityEvent[]
     const r = (step?.result ?? {}) as Record<string, any>;
 
     if (step.tool === "get_ticket_history_report") {
+      const ticketId = str(r?.data?.ticket?.id) ?? str(step?.args?.ticketId);
+
+      if (r?.reused === true) {
+        const hash = str(r?.reusedFromTxHash) ?? str(r?.payment?.txHash);
+        const blockNumber = str(r?.blockNumber) ?? str(r?.payment?.blockNumber);
+        // This is the ORIGINAL payment, not a new one. Keep the amount out of
+        // the event entirely so nothing can present it as a fresh charge.
+        const verified = Boolean(hash) && r?.payment?.verified === true;
+
+        out.push(
+          makeActivityEvent({
+            title: ticketId
+              ? `Reused report (no new payment) for ${ticketId}`
+              : "Reused report (no new payment)",
+            outcome: "done",
+            ticketId,
+            amountNote: verified
+              ? `original payment settled on-chain${blockNumber ? ` · block ${blockNumber}` : ""}`
+              : "original payment — not verified on-chain",
+            hash,
+            url: str(r?.payment?.url),
+            verified: hash ? verified : undefined,
+            blockNumber: verified ? blockNumber : undefined,
+            reused: true,
+          })
+        );
+        continue;
+      }
+
       const amount = paymentAmountUsdc(r?.payment?.amount);
       if (amount) {
-        const ticketId = str(r?.data?.ticket?.id) ?? str(step?.args?.ticketId);
         const hash = str(r?.payment?.txHash);
         const blockNumber = str(r?.payment?.blockNumber);
         // "settled on-chain" is only claimed when Ovelo itself read the receipt

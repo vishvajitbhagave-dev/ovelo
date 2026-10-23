@@ -25,6 +25,7 @@ import {
   LoaderCircle,
   Lock,
   Receipt,
+  RefreshCw,
   ScanLine,
   ShieldCheck,
   Sparkles,
@@ -121,10 +122,11 @@ function LoadingState({ id }: { id: string }) {
       <div className="card-surface flex items-center gap-3 p-6">
         <LoaderCircle className="size-5 shrink-0 animate-spin text-primary" />
         <div>
-          <p className="font-semibold">Paying for the history report and running the risk rules…</p>
+          <p className="font-semibold">Getting the history report and running the risk rules…</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            This settles a real 0.01 USDC payment on Base Sepolia, reads its transaction receipt back from the
-            chain to verify it, then scores the ticket in code.
+            If this ticket&apos;s report was already paid for in the last 10 minutes, Ovelo reuses it and makes
+            no new payment. Otherwise it settles a real 0.01 USDC payment on Base Sepolia, reads the receipt
+            back from the chain to verify it, then scores the ticket in code.
           </p>
         </div>
       </div>
@@ -175,6 +177,11 @@ function DoneCheck({
 
   const report = reportStep?.result?.data;
   const payment = reportStep?.result?.payment;
+  const reused = reportStep?.result?.reused === true;
+  const reusedBlock =
+    typeof reportStep?.result?.blockNumber === "string"
+      ? reportStep.result.blockNumber
+      : payment?.blockNumber;
   const reportOk = Boolean(report?.ticket);
 
   const riskPayload = riskStep && !riskStep.error ? riskStep.result : undefined;
@@ -228,47 +235,77 @@ function DoneCheck({
       )}
 
       {/* 2. The real payment receipt — only if a payment was actually made.
-          "settled on-chain" is said ONLY when Ovelo's own verifier read the
-          transaction receipt back from Base Sepolia and found the USDC Transfer. */}
-      {payment?.amount && (
-        <div
-          className={cn(
-            "inline-flex flex-wrap items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm",
-            payment.verified === true ? "" : "border-medium/70 bg-medium-soft/60"
-          )}
-        >
-          {payment.verified === true ? (
-            <Receipt className="size-4 text-primary" />
-          ) : (
-            <TriangleAlert className="size-4 text-medium" />
-          )}
+          A reused report is NOT a new payment: it shows the original transaction
+          and never the "Paid 0.01 USDC" receipt. "settled on-chain" is said ONLY
+          when Ovelo's own verifier read the original receipt back from Base Sepolia
+          and found the USDC Transfer. */}
+      {reused ? (
+        <div className="inline-flex flex-wrap items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm">
+          <RefreshCw className="size-4 text-primary" />
           <span>
-            Paid {payment.amount} for the ticket history report{" "}
-            {payment.verified === true ? (
+            Reused report (no new payment){" "}
+            {payment?.verified === true ? (
               <span className="text-muted-foreground">
-                (settled on-chain{payment.blockNumber ? ` · block ${payment.blockNumber}` : ""})
+                (original payment settled on-chain{reusedBlock ? ` · block ${reusedBlock}` : ""})
               </span>
             ) : (
               <span className="font-medium text-medium">
-                (facilitator reported success — not verified on-chain)
+                (original payment — not verified on-chain)
               </span>
             )}
           </span>
-          {payment.url && (
+          {payment?.url && (
             <a
               href={payment.url}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-primary underline underline-offset-4"
             >
-              view tx <ExternalLink className="size-3" />
+              view original tx <ExternalLink className="size-3" />
             </a>
           )}
         </div>
+      ) : (
+        payment?.amount && (
+          <div
+            className={cn(
+              "inline-flex flex-wrap items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm",
+              payment.verified === true ? "" : "border-medium/70 bg-medium-soft/60"
+            )}
+          >
+            {payment.verified === true ? (
+              <Receipt className="size-4 text-primary" />
+            ) : (
+              <TriangleAlert className="size-4 text-medium" />
+            )}
+            <span>
+              Paid {payment.amount} for the ticket history report{" "}
+              {payment.verified === true ? (
+                <span className="text-muted-foreground">
+                  (settled on-chain{payment.blockNumber ? ` · block ${payment.blockNumber}` : ""})
+                </span>
+              ) : (
+                <span className="font-medium text-medium">
+                  (facilitator reported success — not verified on-chain)
+                </span>
+              )}
+            </span>
+            {payment.url && (
+              <a
+                href={payment.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-primary underline underline-offset-4"
+              >
+                view tx <ExternalLink className="size-3" />
+              </a>
+            )}
+          </div>
+        )
       )}
 
       {/* Why our own chain check could not confirm the payment, in plain words. */}
-      {payment?.amount && payment.verified !== true && payment.verifyReason && (
+      {!reused && payment?.amount && payment.verified !== true && payment.verifyReason && (
         <p className="text-xs text-muted-foreground">Ovelo&apos;s own check: {payment.verifyReason}</p>
       )}
 

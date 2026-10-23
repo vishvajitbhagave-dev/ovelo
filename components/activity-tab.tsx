@@ -146,9 +146,9 @@ function ActivityRow({ event, status }: { event: ActivityEvent; status: EscrowSt
       </div>
       <p className="mt-1.5 text-sm font-semibold break-words">{event.title}</p>
       {event.reason && <p className="mt-1 text-sm break-words text-muted-foreground">{event.reason}</p>}
-      {(event.amount || event.url || recipient) && (
+      {(event.amount || event.amountNote || event.url || recipient) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-          {event.amount && (
+          {event.amount ? (
             <span className="font-medium">
               {event.amount} test USDC
               {event.amountNote && (
@@ -168,7 +168,16 @@ function ActivityRow({ event, status }: { event: ActivityEvent; status: EscrowSt
                 />
               )}
             </span>
-          )}
+          ) : event.amountNote ? (
+            <span
+              className={cn(
+                "font-normal",
+                event.verified === false ? "text-medium" : "text-muted-foreground"
+              )}
+            >
+              ({event.amountNote})
+            </span>
+          ) : null}
           {recipient && (
             <span className="text-muted-foreground">
               to {recipient.label}{" "}
@@ -184,7 +193,7 @@ function ActivityRow({ event, status }: { event: ActivityEvent; status: EscrowSt
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-primary underline underline-offset-4"
             >
-              view tx <ExternalLink className="size-3" />
+              {event.reused ? "view original tx" : "view tx"} <ExternalLink className="size-3" />
             </a>
           )}
         </div>

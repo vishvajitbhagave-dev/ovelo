@@ -237,8 +237,9 @@ The AI is useful for explanation and tool choice. It is not trusted with money. 
 3. **Escrow guards.** Exactly 1 test USDC per demo deal. The agent must hold at least 3 test USDC and 0.0003 test ETH for gas. The server caps the demo at 40 deals with a 20-second cooldown; the contract caps a single deal at 5 test USDC.
 4. **Deterministic ids.** The tool derives a run id from the ticket id and a 10-minute window, plus a deterministic ticket key. The contract refuses a duplicate key, so a retried tool call inside the same window cannot open a second deal.
 5. **x402 spend guard.** At most 3 paid calls per minute and 10 per hour; the agent must hold at least 0.5 test USDC. The time limits are in memory, per serverless instance, so they are a guard rather than a global quota.
-6. **Independent settlement check.** The agent verifies the receipt and the USDC Transfer log, and permits one retry only when the failure is `settle_failed`. It scans the chain before retrying, signs a fresh EIP-3009 authorization, and never retries `payment_required` or a plain HTTP error.
-7. **Test-only scope.** Keys stay server-side. The scanner is trusted demo infrastructure. The contract moves test assets only. The contract has not been audited.
+6. **Paid report cache.** A successful paid ticket-history report is reused for 10 minutes, with at most 50 entries per server instance. A reuse signs nothing and pays nothing; failures and spend-limit refusals are never cached. The cache is in memory, so it is per serverless instance and resets on a cold start.
+7. **Independent settlement check.** The agent verifies the receipt and the USDC Transfer log, and permits one retry only when the failure is `settle_failed`. It scans the chain before retrying, signs a fresh EIP-3009 authorization, and never retries `payment_required` or a plain HTTP error.
+8. **Test-only scope.** Keys stay server-side. The scanner is trusted demo infrastructure. The contract moves test assets only. The contract has not been audited.
 
 Only three operations move money: `fund`, `checkIn`, and `refund`. `checkIn` is scanner-only, marks the ticket as used, and releases the money to the seller before the deadline. `refund` is buyer-only and only after the deadline. There is no separate release function.
 
@@ -402,7 +403,7 @@ ovelo/
 |-- experiments/model-comparison/
 |-- docs/PROOF.md
 |-- public/logo.png
-|-- test/                    # 76 unit tests
+|-- test/                    # 93 unit tests
 |-- CHANGELOG.md
 |-- SECURITY.md
 `-- README.md
@@ -457,15 +458,16 @@ cd escrow
 npm test
 ```
 
-The app suite currently has **81 tests**, all passing. It covers:
+The app suite currently has **93 tests**, all passing. It covers:
 
 - risk rules and all six demo tickets;
 - funding policy, deterministic run ids, ticket keys, guard constants;
 - model allowlist and fallback behavior;
-- activity-log event mapping, including paid-but-unverified honesty;
+- activity-log event mapping, including paid-but-unverified and reused-report honesty;
 - x402 pricing and the 402 body;
 - independent receipt verification, wrong token/sender/recipient/amount/reverted/malformed logs;
 - x402 spend limits and the 0.5 USDC floor;
+- paid-report cache reuse, expiry, eviction, failure handling and concurrent single-payment sharing;
 - the safe retry path, double-pay guard, and no-retry cases;
 - health-report status, balance floors, facilitator/read failure handling, and secret-field safety.
 

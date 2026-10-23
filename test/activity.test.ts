@@ -100,6 +100,67 @@ test("a paid report with no settlement details still logs the amount alone", () 
   assert.equal(events[0].counterpartyAddress, undefined);
 });
 
+test("a REUSED report is logged as no new payment, with the original transaction", () => {
+  const events = activityFromSteps([
+    {
+      tool: "get_ticket_history_report",
+      result: {
+        reused: true,
+        reusedFromTxHash: "0xabc",
+        blockNumber: "48404488",
+        ageSeconds: 120,
+        payment: {
+          amount: "0.01 USDC",
+          to: "0xDc672f03ec6226B31E45347402af077eCb595559",
+          txHash: "0xabc",
+          url: "https://sepolia.basescan.org/tx/0xabc",
+          verified: true,
+          blockNumber: "48404488",
+        },
+        data: { ticket: { id: "OV-1002" } },
+      },
+    },
+  ]);
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].reused, true);
+  assert.equal(events[0].title, "Reused report (no new payment) for OV-1002");
+  assert.equal(events[0].amount, undefined);
+  assert.equal(events[0].amountNote, "original payment settled on-chain · block 48404488");
+  assert.equal(events[0].verified, true);
+  assert.equal(events[0].blockNumber, "48404488");
+  assert.equal(events[0].hash, "0xabc");
+  assert.equal(events[0].url, "https://sepolia.basescan.org/tx/0xabc");
+});
+
+test("a REUSED unverified report keeps the unverified flag and never claims settlement", () => {
+  const events = activityFromSteps([
+    {
+      tool: "get_ticket_history_report",
+      result: {
+        reused: true,
+        reusedFromTxHash: "0xunverified",
+        payment: {
+          amount: "0.01 USDC",
+          txHash: "0xunverified",
+          url: "https://sepolia.basescan.org/tx/0xunverified",
+          verified: false,
+          verifyReason: "not readable yet",
+        },
+        data: { ticket: { id: "OV-1002" } },
+      },
+    },
+  ]);
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].reused, true);
+  assert.equal(events[0].amount, undefined);
+  assert.equal(events[0].verified, false);
+  assert.equal(events[0].blockNumber, undefined);
+  assert.equal(events[0].amountNote, "original payment — not verified on-chain");
+  assert.ok(!String(events[0].amountNote).includes("settled on-chain"));
+});
+
 test("a HIGH risk check becomes a check event plus a refused event", () => {
   const events = activityFromSteps([
     { tool: "check_ticket_risk", result: { found: true, ticketId: "OV-1002", riskLevel: "HIGH", score: 100, reasons: ["dup"] } },

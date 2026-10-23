@@ -12,6 +12,7 @@ import { getWalletAddress, getWalletBalance } from "./wallet";
 import { payAndFetchOfficial } from "./x402";
 import { runIdFor, fundEscrow, readDeal, listOpenDeals, readChainTime } from "./escrow";
 import { DEMO_EVENT, DEMO_TICKETS, DEMO_TICKET_IDS, assessTicketRisk, findDemoTicket } from "./tickets";
+import { reportCache, type ReportCache, type ReportResult } from "./report-cache";
 
 export type Tool = {
   name: string;
@@ -21,6 +22,36 @@ export type Tool = {
   /** The code that runs when the agent calls this tool. */
   run: (args: any, ctx: { baseUrl: string }) => Promise<unknown>;
 };
+
+export type TicketReportDeps = {
+  /** Payment/fetch function. Defaults to the real x402 payer. Tests pass a fake. */
+  pay?: typeof payAndFetchOfficial;
+  /** Cache instance. Defaults to the app-wide in-memory cache. */
+  cache?: ReportCache;
+};
+
+/**
+ * Buy (or reuse) the paid ticket-history report.
+ *
+ * The cache and in-flight sharing live here, at the tool layer, so both the
+ * chat agent and the "Check this ticket" button get the same behaviour: a
+ * recent report is reused with no new payment, and simultaneous checks of the
+ * same ticket share one payment.
+ */
+export async function getTicketHistoryReport(
+  rawTicketId: unknown,
+  ctx: { baseUrl: string },
+  deps: TicketReportDeps = {}
+): Promise<ReportResult> {
+  const raw = String(rawTicketId ?? "");
+  const key = findDemoTicket(raw)?.id ?? raw.trim().toUpperCase();
+  const pay = deps.pay ?? payAndFetchOfficial;
+  const cache = deps.cache ?? reportCache;
+
+  return cache.getOrLoad(key, () =>
+    pay(`${ctx.baseUrl}/api/ticket-report?ticketId=${encodeURIComponent(raw)}`)
+  );
+}
 
 /** Turns a number of seconds into a short label like "2d 3h", "45m" or "expired". */
 function timeLeftLabel(seconds: number): string {
@@ -143,11 +174,7 @@ export const tools: Tool[] = [
       },
       required: ["ticketId"],
     },
-    run: async ({ ticketId }, { baseUrl }) => {
-      return payAndFetchOfficial(
-        `${baseUrl}/api/ticket-report?ticketId=${encodeURIComponent(String(ticketId ?? ""))}`
-      );
-    },
+    run: async ({ ticketId }, ctx) => getTicketHistoryReport(ticketId, ctx),
   },
 
   // ─── 7. Ovelo: fund a REAL escrow on Base Sepolia (LOW risk only) ───
