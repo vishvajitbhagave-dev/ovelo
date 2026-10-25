@@ -573,7 +573,7 @@ function ToolCall({ step }: { step: Step }) {
         <span className="truncate text-primary">{step.tool}</span>
         {reused && (
           <Badge
-            className="ml-auto bg-muted font-mono uppercase"
+            className="ml-auto bg-muted font-mono text-foreground uppercase"
             title={
               reusedTxHash
                 ? `Original transaction ${reusedTxHash}${reusedBlock ? ` · block ${reusedBlock}` : ""}`

@@ -1,6 +1,8 @@
 import { MODEL, runAgent } from "@/agent/agent";
 import { tools } from "@/agent/tools";
 import { ALLOWED_MODELS, DEFAULT_MODEL_ID, findAllowedModel } from "@/agent/models";
+import { VISITOR_LIMITS } from "@/agent/x402-config";
+import { checkAndRecordChat, getVisitorId } from "@/agent/visitor-limits";
 
 // GET /api/agent -> setup status + the list of tools and models (shown on the page)
 export async function GET() {
@@ -48,8 +50,17 @@ export async function POST(req: Request) {
     );
   }
 
+  // Chat rate limit: check BEFORE calling Gemini/runAgent. Return a friendly
+  // message in the same shape the UI already handles (agent error text) so it
+  // shows normally; no Gemini call is made when refused.
+  const visitorId = getVisitorId(req);
+  const chatLimit = checkAndRecordChat(visitorId, VISITOR_LIMITS);
+  if (!chatLimit.allowed) {
+    return Response.json({ error: chatLimit.message }, { status: 200 });
+  }
+
   try {
-    const result = await runAgent(messages, { baseUrl: requestOrigin(req) }, { model });
+    const result = await runAgent(messages, { baseUrl: requestOrigin(req), visitorId }, { model });
     return Response.json(result);
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });

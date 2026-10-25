@@ -403,7 +403,7 @@ ovelo/
 |-- experiments/model-comparison/
 |-- docs/PROOF.md
 |-- public/logo.png
-|-- test/                    # 93 unit tests
+|-- test/                    # 96 unit tests
 |-- CHANGELOG.md
 |-- SECURITY.md
 `-- README.md
@@ -458,18 +458,22 @@ cd escrow
 npm test
 ```
 
-The app suite currently has **93 tests**, all passing. It covers:
+The app suite currently has **96 tests**, all passing. It covers:
 
 - risk rules and all six demo tickets;
 - funding policy, deterministic run ids, ticket keys, guard constants;
 - model allowlist and fallback behavior;
 - activity-log event mapping, including paid-but-unverified and reused-report honesty;
+- LaTeX-style arrow normalization in rendered chat text;
 - x402 pricing and the 402 body;
 - independent receipt verification, wrong token/sender/recipient/amount/reverted/malformed logs;
 - x402 spend limits and the 0.5 USDC floor;
 - paid-report cache reuse, expiry, eviction, failure handling and concurrent single-payment sharing;
+- per-visitor rolling-window rate limits (chat and paid calls) with hashed IP keys;
 - the safe retry path, double-pay guard, and no-retry cases;
 - health-report status, balance floors, facilitator/read failure handling, and secret-field safety.
+
+**Per-visitor limits:** the app applies per-visitor rolling-window limits (hashed IP keys, no raw IP stored/logged/returned) for chat (20/10m) and paid calls (5/10m). On serverless these are per-instance only and reset on cold start; the existing global x402 limits remain the backstop. A report-cache hit never counts against the visitor paid limit.
 
 It does **not** cover live network calls, real Gemini responses, real paid purchases, the escrow contract's on-chain functions, or the UI/API routes end to end. Those are covered by the recorded testnet proof where possible. The escrow contract has its own Hardhat tests in `escrow/test/`.
 

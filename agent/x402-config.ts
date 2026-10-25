@@ -74,3 +74,15 @@ export const X402 = {
    */
   minAgentUsdcBaseUnits: "500000", // 0.5 USDC
 } as const;
+
+/**
+ * Per-visitor rate limits (in-memory, rolling window). Serverless: per-instance
+ * only, reset on cold start; the existing global x402 limits remain the
+ * backstop. Never used to log or identify visitors beyond a hashed key.
+ */
+export const VISITOR_LIMITS = {
+  chatPer10m: 20,
+  paidPer10m: 5,
+  windowMs: 10 * 60 * 1000,
+  maxVisitors: 1000,
+} as const;

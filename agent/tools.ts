@@ -13,6 +13,8 @@ import { payAndFetchOfficial } from "./x402";
 import { runIdFor, fundEscrow, readDeal, listOpenDeals, readChainTime } from "./escrow";
 import { DEMO_EVENT, DEMO_TICKETS, DEMO_TICKET_IDS, assessTicketRisk, findDemoTicket } from "./tickets";
 import { reportCache, type ReportCache, type ReportResult } from "./report-cache";
+import { VISITOR_LIMITS } from "./x402-config";
+import { checkAndRecordPaid } from "./visitor-limits";
 
 export type Tool = {
   name: string;
@@ -20,7 +22,7 @@ export type Tool = {
   /** JSON Schema describing the inputs. */
   parameters: object;
   /** The code that runs when the agent calls this tool. */
-  run: (args: any, ctx: { baseUrl: string }) => Promise<unknown>;
+  run: (args: any, ctx: { baseUrl: string; visitorId?: string }) => Promise<unknown>;
 };
 
 export type TicketReportDeps = {
@@ -28,6 +30,8 @@ export type TicketReportDeps = {
   pay?: typeof payAndFetchOfficial;
   /** Cache instance. Defaults to the app-wide in-memory cache. */
   cache?: ReportCache;
+  /** Visitor limit checker for tests. */
+  checkPaid?: typeof checkAndRecordPaid;
 };
 
 /**
@@ -37,19 +41,38 @@ export type TicketReportDeps = {
  * chat agent and the "Check this ticket" button get the same behaviour: a
  * recent report is reused with no new payment, and simultaneous checks of the
  * same ticket share one payment.
+ *
+ * Visitor paid limit: check BEFORE signing and BEFORE the existing global guard,
+ * but a report-cache HIT must NOT count against the visitor limit and must
+ * still work when the limit is reached. Refused calls make no payment and sign
+ * nothing.
  */
 export async function getTicketHistoryReport(
   rawTicketId: unknown,
-  ctx: { baseUrl: string },
+  ctx: { baseUrl: string; visitorId?: string },
   deps: TicketReportDeps = {}
 ): Promise<ReportResult> {
   const raw = String(rawTicketId ?? "");
   const key = findDemoTicket(raw)?.id ?? raw.trim().toUpperCase();
   const pay = deps.pay ?? payAndFetchOfficial;
   const cache = deps.cache ?? reportCache;
+  const checkPaid = deps.checkPaid ?? checkAndRecordPaid;
 
-  return cache.getOrLoad(key, () =>
-    pay(`${ctx.baseUrl}/api/ticket-report?ticketId=${encodeURIComponent(raw)}`)
+  // The experiment runner passes ctx but may have no visitorId; treat as a
+  // fixed "runner" bucket and do NOT modify experiment files.
+  const visitorId = ctx.visitorId ?? "runner";
+
+  return cache.getOrLoad(
+    key,
+    async () => {
+      const limit = checkPaid(visitorId, VISITOR_LIMITS);
+      if (!limit.allowed) {
+        throw new Error(limit.message);
+      }
+      return pay(`${ctx.baseUrl}/api/ticket-report?ticketId=${encodeURIComponent(raw)}`);
+    },
+    // Cache hit: do not check/count against visitor limit
+    { countOnHit: false }
   );
 }
 

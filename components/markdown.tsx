@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, type ReactNode } from "react";
+import { convertLatexArrows } from "@/lib/latex-arrows";
 
 /**
  * A tiny, SAFE markdown renderer for agent replies.
@@ -107,7 +108,7 @@ function inline(text: string): ReactNode[] {
 }
 
 export function Markdown({ text }: { text: string }) {
-  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const lines = convertLatexArrows(text).replace(/\r\n?/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
 

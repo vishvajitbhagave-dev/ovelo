@@ -73,7 +73,11 @@ const SYSTEM_PROMPT =
 export type ChatMessage = { role: "user" | "agent"; text: string };
 export type Step = { tool: string; args: unknown; result: unknown; error?: boolean };
 
-export async function runAgent(history: ChatMessage[], ctx: { baseUrl: string }, options?: { model?: string }) {
+export async function runAgent(
+  history: ChatMessage[],
+  ctx: { baseUrl: string; visitorId?: string },
+  options?: { model?: string }
+) {
   const model = resolveModel(options?.model).id;
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const contents: Content[] = history.map((m) => ({

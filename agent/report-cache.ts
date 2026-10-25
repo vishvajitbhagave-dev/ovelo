@@ -147,8 +147,16 @@ export class ReportCache {
    * Return a cached report, share an in-flight request for the same ticket, or
    * run the loader once. Only a cacheable paid report is stored. A failed load
    * rejects every waiter and is never cached.
+   *
+   * Cache hits must not count against visitor limits; the caller controls that
+   * via `countOnHit`/by checking before calling load. The option exists so the
+   * interface stays compatible and hits are never treated as paid.
    */
-  async getOrLoad(ticketId: string, load: () => Promise<OfficialPayResult>): Promise<ReportResult> {
+  async getOrLoad(
+    ticketId: string,
+    load: () => Promise<OfficialPayResult>,
+    _opts: { countOnHit?: boolean } = {}
+  ): Promise<ReportResult> {
     const hit = this.get(ticketId);
     if (hit) return reusedReport(hit);
 
