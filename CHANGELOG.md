@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added a "Give feedback" link in the app header and a Feedback section in the README, both pointing to the public feedback form.
 - Added per-visitor rolling-window rate limits (hashed IP keys, no raw IP stored/logged/returned) for chat (20/10m) and paid calls (5/10m) with in-memory eviction/cap; chat checked in route before Gemini, paid checked before signing and before global limits; cache hits never count; per-instance on serverless with global x402 limits as backstop.
 
 Work for Week 2 and Week 3. It mirrors the future scope in the

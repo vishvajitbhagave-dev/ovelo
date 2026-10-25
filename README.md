@@ -38,6 +38,8 @@
   &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a>
   &nbsp;·&nbsp;
+  <a href="#feedback">Feedback</a>
+  &nbsp;·&nbsp;
   <a href="https://x.com/0velo_">X</a>
 </p>
 
@@ -74,6 +76,7 @@
 - [Future scope](#future-scope)
 - [Not planned for this demo](#not-planned-for-this-demo)
 - [Security and social](#security-and-social)
+- [Feedback](#feedback)
 - [License](#license)
 
 ## Judge's 30-second path
@@ -403,7 +406,7 @@ ovelo/
 |-- experiments/model-comparison/
 |-- docs/PROOF.md
 |-- public/logo.png
-|-- test/                    # 96 unit tests
+|-- test/                    # 103 unit tests
 |-- CHANGELOG.md
 |-- SECURITY.md
 `-- README.md
@@ -458,7 +461,7 @@ cd escrow
 npm test
 ```
 
-The app suite currently has **96 tests**, all passing. It covers:
+The app suite currently has **103 tests**, all passing. It covers:
 
 - risk rules and all six demo tickets;
 - funding policy, deterministic run ids, ticket keys, guard constants;
@@ -522,6 +525,10 @@ There is no separate `npm run typecheck` or `npm run lint` script in [this repo]
 - Security notes and trust boundaries: [SECURITY.md](SECURITY.md).
 - Report a vulnerability through GitHub private vulnerability reporting, or contact [@0velo_](https://x.com/0velo_).
 - Follow [@0velo_](https://x.com/0velo_). Posts for the hackathon tag [@riseinweb3](https://x.com/riseinweb3).
+
+## Feedback
+
+The [feedback form](https://docs.google.com/forms/d/e/1FAIpQLSfPd5Sls0mL_PVAOxD-BdBFjh0zDDtFaWqhMxx2Y78vcmoSBw/viewform) takes about a minute. It asks for no personal information. Ovelo uses fake tickets and test money only.
 
 ## License
 

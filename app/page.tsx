@@ -23,6 +23,7 @@ import { CheckTab, type CheckState, type EscrowTx, type FundedDeal, type Step } 
 import { WalletTab, type WalletInfo } from "@/components/wallet-tab";
 import { ActivityTab } from "@/components/activity-tab";
 import { activityFromSteps, type ActivityEvent } from "@/lib/activity";
+import { FEEDBACK_FORM_URL } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 type Message = { role: "user" | "agent"; text: string; steps?: Step[]; error?: boolean; model?: string };
@@ -221,6 +222,15 @@ export default function Home() {
               Demo mode · fake tickets only
             </span>
             <WalletChip wallet={wallet} />
+            <a
+              href={FEEDBACK_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Give feedback (opens in a new tab)"
+              className="rounded-full border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              Give feedback
+            </a>
           </div>
         </div>
       </header>
