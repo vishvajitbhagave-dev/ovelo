@@ -32,8 +32,11 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
+import { Markdown } from "@/components/markdown";
 import { RiskCard, parseRiskResult, type RiskLevel } from "@/components/risk-card";
 import { makeActivityEvent, type ActivityEvent } from "@/lib/activity";
+import { cleanText } from "@/lib/clean-text";
+import { friendlyError } from "@/lib/friendly-errors";
 import { cn } from "@/lib/utils";
 
 export type Step = { tool: string; args: unknown; result: any; error?: boolean };
@@ -138,7 +141,47 @@ function LoadingState({ id }: { id: string }) {
   );
 }
 
+function TechnicalDetails({ message, technical }: { message: string; technical: string }) {
+  if (!technical || technical === message) return null;
+
+  return (
+    <details className="w-full text-xs text-muted-foreground">
+      <summary className="cursor-pointer select-none">Technical details</summary>
+      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words font-mono text-[11px]">
+        {technical}
+      </pre>
+    </details>
+  );
+}
+
+function ReportFailureCard({ raw }: { raw: string }) {
+  const error = friendlyError(raw);
+
+  return (
+    <div className="card-surface flex flex-col items-start gap-2 border-l-2 border-l-medium p-5 md:p-6">
+      <div className="flex items-center gap-2 font-semibold text-medium">
+        <TriangleAlert className="size-5" /> History report unavailable
+      </div>
+      <p className="text-sm break-words text-muted-foreground">{error.message}</p>
+      <TechnicalDetails message={error.message} technical={error.technical} />
+    </div>
+  );
+}
+
+function OveloSays({ answer }: { answer: string }) {
+  return (
+    <div className="rounded-xl bg-secondary p-4 text-sm text-secondary-foreground">
+      <div className="mb-1 flex items-center gap-1.5 font-semibold">
+        <Sparkles className="size-4" /> Ovelo says
+      </div>
+      <Markdown text={cleanText(answer)} />
+    </div>
+  );
+}
+
 function ErrorState({ check, onRun }: { check: Extract<CheckState, { status: "error" }>; onRun: (id: string) => void }) {
+  const error = friendlyError(check.message);
+
   return (
     <>
       <div>
@@ -149,7 +192,8 @@ function ErrorState({ check, onRun }: { check: Extract<CheckState, { status: "er
         <div className="flex items-center gap-2 font-semibold text-high">
           <TriangleAlert className="size-5" /> The check did not finish
         </div>
-        <p className="text-sm text-muted-foreground">{check.message}</p>
+        <p className="text-sm text-muted-foreground">{error.message}</p>
+        <TechnicalDetails message={error.message} technical={error.technical} />
         <button
           onClick={() => onRun(check.id)}
           className="mt-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
@@ -306,95 +350,93 @@ function DoneCheck({
 
       {/* Why our own chain check could not confirm the payment, in plain words. */}
       {!reused && payment?.amount && payment.verified !== true && payment.verifyReason && (
-        <p className="text-xs text-muted-foreground">Ovelo&apos;s own check: {payment.verifyReason}</p>
+        <p className="text-xs text-muted-foreground">
+          Ovelo&apos;s own check: {cleanText(String(payment.verifyReason))}
+        </p>
       )}
 
       {/* Report problem, stated plainly */}
-      {reportProblem && !risk && (
-        <p className="text-sm text-muted-foreground">{reportProblem}</p>
-      )}
+      {reportProblem && <ReportFailureCard raw={reportProblem} />}
 
       {/* 3 + 4. History timeline, issuer and owners, agent's explanation */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="card-surface p-5 md:p-6">
-          <h2 className="font-heading text-lg font-bold">History report</h2>
-          {reportOk ? (
-            <ol className="mt-5 space-y-5 border-l-2 border-border pl-6">
-              {report.timeline.map((event: any, i: number) => {
-                const label = TIMELINE_LABEL[event.type] ?? String(event.type);
-                const active = event.type !== "not_scanned";
-                return (
-                  <li key={i} className="relative">
-                    <span
-                      className={cn(
-                        "absolute -left-[31px] top-1 size-3.5 rounded-full border-2 border-card",
-                        active ? "bg-primary" : "bg-border"
-                      )}
-                    />
-                    <div className="font-semibold">{label}</div>
-                    <div className="text-sm break-words text-muted-foreground">
-                      {event.detail}
-                      {event.when ? <span> · {event.when}</span> : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">{reportProblem}</p>
-          )}
-        </div>
-
-        <div className="card-surface space-y-4 p-5 md:p-6">
-          {reportOk ? (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-muted-foreground">Issuer</span>
-                <span className="flex items-center gap-2 font-medium">
-                  <span className="break-words text-right">{report.issuer.name}</span>
-                  {report.issuer.verified ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-low-soft px-2 py-0.5 text-xs font-semibold text-low">
-                      <BadgeCheck className="size-3.5" /> Verified
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-high-soft px-2 py-0.5 text-xs font-semibold text-high">
-                      <BadgeAlert className="size-3.5" /> Unverified
-                    </span>
-                  )}
-                </span>
-              </div>
-
-              <div className="flex justify-between gap-3">
-                <span className="text-muted-foreground">Original face value</span>
-                <span className="font-medium">${report.originalFaceValueUsd}</span>
-              </div>
-
-              <div className="flex items-start justify-between gap-3">
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <Users className="size-4" /> Owners so far
-                </span>
-                <span className="text-right font-medium">
-                  {report.ownerCount}
-                  <span className="block text-xs font-normal break-words text-muted-foreground">
-                    {report.owners.join(" → ")}
-                  </span>
-                </span>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">{reportProblem}</p>
-          )}
-
-          {check.answer && (
-            <div className="rounded-xl bg-secondary p-4 text-sm text-secondary-foreground">
-              <div className="mb-1 flex items-center gap-1.5 font-semibold">
-                <Sparkles className="size-4" /> Ovelo says
-              </div>
-              <p className="whitespace-pre-wrap break-words">{check.answer}</p>
+      {(reportOk || check.answer) && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          {reportOk && (
+            <div className="card-surface p-5 md:p-6">
+              <h2 className="font-heading text-lg font-bold">History report</h2>
+              <ol className="mt-5 space-y-5 border-l-2 border-border pl-6">
+                {report.timeline.map((event: any, i: number) => {
+                  const label = TIMELINE_LABEL[event.type] ?? String(event.type);
+                  const active = event.type !== "not_scanned";
+                  return (
+                    <li key={i} className="relative">
+                      <span
+                        className={cn(
+                          "absolute -left-[31px] top-1 size-3.5 rounded-full border-2 border-card",
+                          active ? "bg-primary" : "bg-border"
+                        )}
+                      />
+                      <div className="font-semibold">{label}</div>
+                      <div className="text-sm break-words text-muted-foreground">
+                        {cleanText(String(event.detail ?? ""))}
+                        {event.when ? <span> · {event.when}</span> : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
           )}
+
+          <div
+            className={cn(
+              "card-surface space-y-4 p-5 md:p-6",
+              !reportOk && "lg:col-span-2"
+            )}
+          >
+            {reportOk && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-muted-foreground">Issuer</span>
+                  <span className="flex items-center gap-2 font-medium">
+                    <span className="break-words text-right">
+                      {cleanText(String(report.issuer.name ?? ""))}
+                    </span>
+                    {report.issuer.verified ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-low-soft px-2 py-0.5 text-xs font-semibold text-low">
+                        <BadgeCheck className="size-3.5" /> Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-high-soft px-2 py-0.5 text-xs font-semibold text-high">
+                        <BadgeAlert className="size-3.5" /> Unverified
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Original face value</span>
+                  <span className="font-medium">${report.originalFaceValueUsd}</span>
+                </div>
+
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Users className="size-4" /> Owners so far
+                  </span>
+                  <span className="text-right font-medium">
+                    {report.ownerCount}
+                    <span className="block text-xs font-normal break-words text-muted-foreground">
+                      {cleanText(report.owners.join(" → "))}
+                    </span>
+                  </span>
+                </div>
+              </>
+            )}
+
+            {check.answer && <OveloSays answer={check.answer} />}
+          </div>
         </div>
-      </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Demo tickets only. Every value above came from the tool results of this check.

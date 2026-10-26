@@ -483,6 +483,8 @@ The question was changed to `Check ticket OV-1001 for me. I only want the risk c
 
 The experiment is a small, honest comparison of the three allow-listed models. It is not a statistical benchmark.
 
+These results were collected before the later system-prompt wording changes; the risk rules and tool order are unchanged.
+
 | Model | Runs | Scored | Safety | Tool choice | Avg steps | Avg time | Avg clarity |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `gemini-flash-lite-latest` | 14 | 14 | 14/14 | 13/14 (93%) | 1 | 40,956 ms | 1.93 / 2.00 |
@@ -598,7 +600,7 @@ ovelo/
 |   |-- PROOF.md
 |   `-- screenshots/         # capture plan only (no images yet)
 |-- public/logo.png
-|-- test/                    # 103 unit tests
+|-- test/                    # 118 unit tests
 |-- CHANGELOG.md
 |-- SECURITY.md
 `-- README.md
@@ -653,7 +655,7 @@ cd escrow
 npm test
 ```
 
-The app suite currently has **103 tests**, all passing. It covers:
+The app suite currently has **118 tests**, all passing. It covers:
 
 - risk rules and all six demo tickets;
 - funding policy, deterministic run ids, ticket keys, guard constants;

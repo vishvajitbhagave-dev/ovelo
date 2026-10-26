@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Activity as ActivityIcon, ExternalLink, RefreshCw, TriangleAlert } from "lucide-react";
+import { cleanText } from "@/lib/clean-text";
 import { cn } from "@/lib/utils";
 import type { ActivityEvent, ActivityOutcome } from "@/lib/activity";
 
@@ -144,8 +145,10 @@ function ActivityRow({ event, status }: { event: ActivityEvent; status: EscrowSt
         <span className="font-mono text-xs text-muted-foreground">{timeLabel(event.at)}</span>
         <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", style.badge)}>{style.label}</span>
       </div>
-      <p className="mt-1.5 text-sm font-semibold break-words">{event.title}</p>
-      {event.reason && <p className="mt-1 text-sm break-words text-muted-foreground">{event.reason}</p>}
+      <p className="mt-1.5 text-sm font-semibold break-words">{cleanText(event.title)}</p>
+      {event.reason && (
+        <p className="mt-1 text-sm break-words text-muted-foreground">{cleanText(event.reason)}</p>
+      )}
       {(event.amount || event.amountNote || event.url || recipient) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           {event.amount ? (
@@ -158,7 +161,7 @@ function ActivityRow({ event, status }: { event: ActivityEvent; status: EscrowSt
                     event.verified === false ? "text-medium" : "text-muted-foreground"
                   )}
                 >
-                  {" "}({event.amountNote})
+                  {" "}({cleanText(event.amountNote)})
                 </span>
               )}
               {event.verified === false && (

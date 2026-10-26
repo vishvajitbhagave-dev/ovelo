@@ -23,7 +23,9 @@ import { CheckTab, type CheckState, type EscrowTx, type FundedDeal, type Step } 
 import { WalletTab, type WalletInfo } from "@/components/wallet-tab";
 import { ActivityTab } from "@/components/activity-tab";
 import { activityFromSteps, type ActivityEvent } from "@/lib/activity";
+import { cleanText } from "@/lib/clean-text";
 import { FEEDBACK_FORM_URL } from "@/lib/links";
+import { friendlyError } from "@/lib/friendly-errors";
 import { cn } from "@/lib/utils";
 
 type Message = { role: "user" | "agent"; text: string; steps?: Step[]; error?: boolean; model?: string };
@@ -46,6 +48,25 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 const EXAMPLES = ["What's the weather in Mumbai?", "What's in your wallet?", "Roll a 20 sided dice"];
+
+function AgentError({ text }: { text: string }) {
+  const error = friendlyError(text);
+
+  return (
+    <>
+      <CircleAlert className="mr-1 inline size-4" />
+      {error.message}
+      {error.technical !== error.message && (
+        <details className="mt-2 text-xs">
+          <summary className="cursor-pointer select-none">Technical details</summary>
+          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-[11px]">
+            {error.technical}
+          </pre>
+        </details>
+      )}
+    </>
+  );
+}
 
 export default function Home() {
   const [status, setStatus] = useState<Status | null>(null);
@@ -475,12 +496,9 @@ function ChatPanel(props: ChatPanelProps) {
                   )}
                 >
                   {m.error ? (
-                    <>
-                      <CircleAlert className="mr-1 inline size-4" />
-                      {m.text}
-                    </>
+                    <AgentError text={m.text} />
                   ) : (
-                    <Markdown text={m.text} />
+                    <Markdown text={cleanText(m.text)} />
                   )}
                 </div>
                 {m.model && (

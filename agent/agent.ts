@@ -70,6 +70,16 @@ const SYSTEM_PROMPT =
   "get_my_wallet shows your own wallet address and balance on Base Sepolia testnet. Use them when asked. " +
   "Keep answers short and friendly.";
 
+const OUTPUT_STYLE =
+  "OUTPUT STYLE (important): Write plain, friendly, short English. " +
+  "Do not add \"Note:\" disclaimers. When a limitation matters, state it once; do not repeat " +
+  "\"demo tickets\" reminders, because the page already says it. " +
+  "Say \"Ovelo will not fund this ticket\" instead of \"I refuse\". " +
+  "Do not quote technical error codes. " +
+  "If a paid report cannot be fetched, say in one plain sentence that the report could not be fetched " +
+  "and that the risk check still stands. " +
+  "Use at most simple bold for ticket ids and short bullet lists.";
+
 export type ChatMessage = { role: "user" | "agent"; text: string };
 export type Step = { tool: string; args: unknown; result: unknown; error?: boolean };
 
@@ -91,7 +101,7 @@ export async function runAgent(
       model,
       contents,
       config: {
-        systemInstruction: SYSTEM_PROMPT,
+        systemInstruction: SYSTEM_PROMPT + " " + OUTPUT_STYLE,
         tools: [
           {
             functionDeclarations: tools.map((t) => ({

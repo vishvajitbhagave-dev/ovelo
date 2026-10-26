@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added a "Give feedback" link in the app header and a Feedback section in the README, both pointing to the public feedback form.
 - Added per-visitor rolling-window rate limits (hashed IP keys, no raw IP stored/logged/returned) for chat (20/10m) and paid calls (5/10m) with in-memory eviction/cap; chat checked in route before Gemini, paid checked before signing and before global limits; cache hits never count; per-instance on serverless with global x402 limits as backstop.
+- **Cleaner wording in the UI and agent.** The Check tab now renders "Ovelo says" with the same safe Markdown renderer as chat, a small text cleaner removes stray asterisks and asterisk-wrapped notes, failed paid reports show a compact friendly card with raw details collapsed, and the agent system prompt includes an output-style section. Server-side error strings and payment/escrow logic are unchanged.
 
 Work for Week 2 and Week 3. It mirrors the future scope in the
 [README](README.md#future-scope-for-week-2-and-week-3).
