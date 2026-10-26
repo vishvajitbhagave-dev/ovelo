@@ -47,14 +47,20 @@
 
 - [Table of Contents](#table-of-contents)
 - [Judge's 30-second path](#judges-30-second-path)
+- [Important links](#important-links)
 - [Community and build in public](#community-and-build-in-public)
 - [The problem](#the-problem)
 - [The solution](#the-solution)
 - [How a deal moves](#how-a-deal-moves)
+- [Screenshots](#screenshots)
+- [Quick user guide](#quick-user-guide)
 - [What a verified payment means](#what-a-verified-payment-means)
 - [Proof on Base Sepolia](#proof-on-base-sepolia)
+- [Smart contract](#smart-contract)
 - [The rules](#the-rules)
+- [Example walkthrough](#example-walkthrough)
 - [Server-side safety](#server-side-safety)
+- [Security checklist](#security-checklist)
 - [Activity log](#activity-log)
 - [Bugs found and fixed](#bugs-found-and-fixed)
   - [1. The first hand-made x402 payment never settled](#1-the-first-hand-made-x402-payment-never-settled)
@@ -73,10 +79,10 @@
 - [Testing and CI](#testing-and-ci)
 - [Demo videos](#demo-videos)
 - [Known limits](#known-limits)
-- [Future scope](#future-scope)
-- [Not planned for this demo](#not-planned-for-this-demo)
-- [Security and social](#security-and-social)
+- [Roadmap](#roadmap)
+- [Documentation and contact](#documentation-and-contact)
 - [Feedback](#feedback)
+  - [Early testers](#early-testers)
 - [License](#license)
 
 ## Judge's 30-second path
@@ -85,10 +91,26 @@
 | --- | --- | --- |
 | 30 seconds | Open the [live demo](https://ovelo-five.vercel.app/) and ask: `Check ticket OV-1002` | A **HIGH** risk result (already scanned) with reasons, a score, and a refusal to fund |
 | 2 minutes | Ask: `Check ticket OV-1001` | A **LOW** risk result with a **Fund escrow** button |
-| 5 minutes | Click **Fund escrow**, then open **Activity** | The 1 test USDC moves into escrow on Base Sepolia; the activity log shows the transaction |
+| 5 minutes | Click **Fund escrow**, then open **Activity** | The 1 test USDC moves into escrow on Base Sepolia; the activity log shows the transaction. See [Early testers](#early-testers). |
 | 10 minutes | Read [`docs/PROOF.md`](docs/PROOF.md) | Real testnet transactions for deployment, funding, check-in, refund, and an x402 settlement |
 
 The live app is wired to Base Sepolia. It uses test USDC and a demo seller/scanner; no real ticket or real money is involved.
+
+## Important links
+
+| Link | What it is |
+| --- | --- |
+| [Live app](https://ovelo-five.vercel.app/) | The deployed Base Sepolia demo |
+| [Demo videos](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/README.md#demo-videos) | Recorded walkthroughs |
+| [Ovelo on X](https://x.com/0velo_) | Build updates |
+| [Feedback form](https://docs.google.com/forms/d/e/1FAIpQLSfPd5Sls0mL_PVAOxD-BdBFjh0zDDtFaWqhMxx2Y78vcmoSBw/viewform) | Public, no personal information requested |
+| [Live feedback responses (Google Sheet)](https://docs.google.com/spreadsheets/d/1Wzp8YbDaNHE-0TqWcGKauinF0d86Zk_VNA5kT9sLK4s/edit?gid=1576403258#gid=1576403258) | Responses collected from the feedback form |
+| [Escrow source on Basescan](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E#code) | Verified source, not an audit |
+| [Proof on Base Sepolia](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/docs/PROOF.md) | Recorded testnet transactions |
+| [Security notes](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/SECURITY.md) | Trust boundaries and reporting |
+| [Changelog](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/CHANGELOG.md) | What changed and when |
+| [Model experiment](https://github.com/vishvajitbhagave-dev/ovelo/tree/main/experiments/model-comparison) | Method, questions and raw results |
+| [Health endpoint](https://ovelo-five.vercel.app/api/health) | Safe JSON status, no secrets |
 
 ## Community and build in public
 
@@ -153,6 +175,99 @@ flowchart LR
 
 The important property: the agent can propose a funding, but the server re-checks the risk policy, the user approves MEDIUM-risk deals in the UI, and the escrow contract enforces the amount, the check-in, and the refund rules.
 
+## Screenshots
+
+These are planned placeholders. No image is embedded yet, so the page has no broken images. The capture plan is in [`docs/screenshots/README.md`](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/docs/screenshots/README.md).
+
+### Tickets tab
+
+The six demo tickets with their price, resale cap and risk labels.
+
+*Screenshot coming soon: docs/screenshots/01-tickets.png*
+
+<!-- ![Tickets tab](docs/screenshots/01-tickets.png) -->
+
+### HIGH-risk check
+
+The Check tab for OV-1002 showing the HIGH risk score and the refusal to fund.
+
+*Screenshot coming soon: docs/screenshots/02-check-high-risk.png*
+
+<!-- ![HIGH-risk check](docs/screenshots/02-check-high-risk.png) -->
+
+### Verified payment receipt
+
+A paid report receipt with the verified-on-chain payment, block number and transaction link.
+
+*Screenshot coming soon: docs/screenshots/03-verified-payment-receipt.png*
+
+<!-- ![Verified payment receipt](docs/screenshots/03-verified-payment-receipt.png) -->
+
+### Activity tab
+
+The Activity tab logging checks, refusals, escrow events and paid calls.
+
+*Screenshot coming soon: docs/screenshots/04-activity-tab.png*
+
+<!-- ![Activity tab](docs/screenshots/04-activity-tab.png) -->
+
+### Agent wallet
+
+The Agent wallet tab with the test ETH and test USDC balances.
+
+*Screenshot coming soon: docs/screenshots/05-agent-wallet.png*
+
+<!-- ![Agent wallet](docs/screenshots/05-agent-wallet.png) -->
+
+### Basescan transaction
+
+A Basescan transaction page for the escrow fund or check-in.
+
+*Screenshot coming soon: docs/screenshots/06-basescan-transaction.png*
+
+<!-- ![Basescan transaction](docs/screenshots/06-basescan-transaction.png) -->
+
+### Basescan verified contract
+
+Basescan showing the OveloEscrow source verified against the deployed bytecode.
+
+*Screenshot coming soon: docs/screenshots/07-basescan-verified-contract.png*
+
+<!-- ![Basescan verified contract](docs/screenshots/07-basescan-verified-contract.png) -->
+
+### Reused report
+
+A reused paid report labelled as no new payment, with the original block and transaction.
+
+*Screenshot coming soon: docs/screenshots/08-reused-report.png*
+
+<!-- ![Reused report](docs/screenshots/08-reused-report.png) -->
+
+### Mobile view
+
+The mobile layout of the Tickets and Check tabs.
+
+*Screenshot coming soon: docs/screenshots/09-mobile-view.png*
+
+<!-- ![Mobile view](docs/screenshots/09-mobile-view.png) -->
+
+### Health endpoint
+
+The `/api/health` JSON response with safe status fields and no secrets.
+
+*Screenshot coming soon: docs/screenshots/10-health-endpoint.png*
+
+<!-- ![Health endpoint](docs/screenshots/10-health-endpoint.png) -->
+
+## Quick user guide
+
+1. Open the [live app](https://ovelo-five.vercel.app/). It uses fake tickets, Base Sepolia test ETH and test USDC only.
+2. Open **Check** and try `Check ticket OV-1002` first. It is HIGH risk, so the app refuses to fund it and no money moves.
+3. Ask about a LOW-risk ticket such as `Check ticket OV-1001`. LOW-risk tickets can open a real test escrow deal, so explore the HIGH-risk tickets first if you only want a risk check.
+4. Ask for the paid ticket-history report if you want to see x402. It costs **0.01 test USDC**; a report-cache hit costs nothing.
+5. Pressing **Fund escrow** on a LOW-risk ticket moves **1 test USDC** into escrow and starts a **1-hour** check-in window. HIGH is always refused; MEDIUM needs your explicit **Approve and fund escrow** click.
+6. Limits apply: chat **20 per 10 minutes** and paid calls **5 per 10 minutes** per visitor; global x402 caps are **3 per minute**, **10 per hour**, with a **0.5 test USDC** wallet floor. New escrow deals are capped at **40** with a **20-second** cooldown. On serverless, per-visitor and time-based counters are in memory per instance.
+
 ## What a verified payment means
 
 This is the x402 path, not the escrow path.
@@ -203,6 +318,34 @@ Other recorded transactions:
 
 The escrow proof transactions were sent by Ovelo's own code. The x402 settlement was submitted by the facilitator; Ovelo only signed the EIP-3009 authorization. The proof distinguishes the two.
 
+## Smart contract
+
+`OveloEscrow` holds test USDC on Base Sepolia. It is a demo contract: **not audited**, test assets only.
+
+| Item | Value |
+| --- | --- |
+| Network | Base Sepolia, chain id `84532` (`eip155:84532`) |
+| Contract | [`0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E`](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E) |
+| Deploy transaction | [`0xd7ba8e63c03219d8dab813d76d4c4151f83ae4c922bc8b9c0cf5266a6928c18d`](https://sepolia.basescan.org/tx/0xd7ba8e63c03219d8dab813d76d4c4151f83ae4c922bc8b9c0cf5266a6928c18d) |
+| Verified source | [Basescan verified source](https://sepolia.basescan.org/address/0xAAa0c9d296EfA3Df324d26D0757608cEB408bE8E#code) (verification is not an audit) |
+| Audit | **Not audited** |
+
+Constructor parameters, from [`escrow/deployments/baseSepolia.json`](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/escrow/deployments/baseSepolia.json) and the verified constructor:
+
+| Parameter | Value | Meaning |
+| --- | --- | --- |
+| `token` | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/token/0x036CbD53842c5426634e7929541eC2318f3dCF7e) | Base Sepolia test USDC, 6 decimals |
+| `scanner` | [`0xdcBe6C7861cB7cB29BEc1682d6aE701c6B4cB2b6`](https://sepolia.basescan.org/address/0xdcBe6C7861cB7cB29BEc1682d6aE701c6B4cB2b6) | The only address allowed to call `checkIn` |
+| `maxDealAmount` | `5000000` base units (5 test USDC) | Upper bound for one deal |
+
+| Function | Who may call | What it does |
+| --- | --- | --- |
+| `fund(ticketId, seller, amount, deadline)` | Any buyer with enough token approval; `msg.sender` becomes the buyer; the seller cannot be the buyer | Locks `amount` (above 0, at most `maxDealAmount`) until a future deadline; rejects a second deal while the ticket is Funded or Released |
+| `checkIn(dealId)` | `trustedScanner` only | Before the deadline, marks the deal Released and pays the seller the exact amount; rejects a second scan and refunded deals |
+| `refund(dealId)` | The deal's buyer only | After the deadline, while the deal is still Funded, returns the amount to the buyer |
+| `getDeal(dealId)` | Anyone (view) | Returns an existing deal; reverts for unknown ids |
+| `getDealIdForTicket(ticketId)` | Anyone (view) | Returns the current deal id for a ticket, or `0` |
+
 ## The rules
 
 Risk level is computed in code, not by the model. The model explains the result. The current demo rules:
@@ -231,6 +374,28 @@ The six demo tickets:
 
 An unknown ticket id is refused; the agent does not guess. These are demo heuristics, not a fraud detector.
 
+## Example walkthrough
+
+Two code paths, using the demo data in `agent/tickets.ts` and the recorded Base Sepolia proof.
+
+### OV-1002: HIGH risk, refused
+
+1. Ask `Check ticket OV-1002`. The free `check_ticket_risk` tool runs `assessTicketRisk`.
+2. The rules add **+100** because the ticket was already scanned. The seller is the current owner, the issuer is verified, the $175 asking price is under the $180 resale cap, and the last transfer was 2 days ago, so no other rule adds points.
+3. Result: **HIGH**, score **100**, recommendation **do not fund**.
+4. Ask for the ticket-history report if you want to exercise x402. It costs **0.01 test USDC**, and the risk decision does not depend on it.
+5. The payment is verified from the chain after settlement. A recorded x402 settlement that used the same verification path is block **48411594**, transaction [`0x51148c49…24b76`](https://sepolia.basescan.org/tx/0x51148c491faabafa22965265735947c5152efcdd47e5bbe4e69c8d329f624b76). `agent/x402-verify.ts` checks the receipt and the USDC `Transfer` log for the token, sender, recipient and 10,000 base units.
+6. Funding is refused. No escrow deal opens and no escrow money moves.
+
+### OV-1001: LOW risk, escrow path
+
+1. Ask `Check ticket OV-1001`. Score **0**, level **LOW**, recommendation **ok to proceed**.
+2. Press **Fund escrow** (or let the agent fund LOW). The server re-checks the level, moves exactly **1 test USDC**, and sets a **1-hour** deadline. The agent wallet needs at least 3 test USDC and 0.0003 test ETH for gas.
+3. The scanner presses **Scan at gate** before the deadline. `checkIn` marks the deal Released and pays the seller 1 test USDC.
+4. A second scan is rejected by the contract: `OveloEscrow: deal already checked in - rejected second scan`.
+5. A different deal that is never checked in can be refunded by the buyer after its deadline, while it is still Funded. A Released deal cannot be refunded, and a refunded ticket can be funded again.
+6. The recorded check-in and refund transactions are in [`docs/PROOF.md`](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/docs/PROOF.md).
+
 ## Server-side safety
 
 The AI is useful for explanation and tool choice. It is not trusted with money. The server enforces:
@@ -245,6 +410,29 @@ The AI is useful for explanation and tool choice. It is not trusted with money. 
 8. **Test-only scope.** Keys stay server-side. The scanner is trusted demo infrastructure. The contract moves test assets only. The contract has not been audited.
 
 Only three operations move money: `fund`, `checkIn`, and `refund`. `checkIn` is scanner-only, marks the ticket as used, and releases the money to the seller before the deadline. `refund` is buyer-only and only after the deadline. There is no separate release function.
+
+## Security checklist
+
+Status derived from [SECURITY.md](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/SECURITY.md) and the code. "Partial" means a guard exists but is not a hard guarantee.
+
+<details>
+<summary>Security checklist (11 checks)</summary>
+
+| Check | Status | Evidence / caveat |
+| --- | --- | --- |
+| Keys only in server-side storage | Done | `WALLET_PRIVATE_KEY` and `SCANNER_PRIVATE_KEY` are server env vars; the **Create wallet** file `.agent-wallet.json` is git-ignored and never returned to the browser |
+| Secrets never committed | Done | `.env`, `escrow/.env`, `.agent-wallet.json` and `.receiver-wallet.json` are git-ignored; only the `.env.example` files are tracked |
+| Risk recomputed on the server | Done | `assessTicketRisk` in `agent/tickets.ts`; the server re-checks before funding |
+| HIGH always refused | Done | `agent/escrow.ts` refuses HIGH before calling escrow |
+| MEDIUM only by human click | Done | MEDIUM needs `approved: true` from the UI approve endpoint; the agent tool cannot set it |
+| Deal cap and cooldown | Done | 40 total deals and a 20-second cooldown (`agent/escrow-config.ts`) |
+| x402 spend limit and per-visitor limits | Partial | 3 paid calls/minute, 10/hour and a 0.5 USDC wallet floor; per visitor 20 chat/10m and 5 paid/10m. Time-based counters are in memory and per serverless instance |
+| Payment verified from the chain | Done | `agent/x402-verify.ts` checks the receipt, token, sender, recipient and amount; the recorded proof is block `48411594` |
+| Contract audited | Not done | `OveloEscrow` has not been audited; source verification is not an audit |
+| Trusted demo scanner | Partial | Only the scanner address can call `checkIn`, but it is demo infrastructure, not a real venue device |
+| User wallet connection | Not done | There is no connect-your-own-wallet flow; one shared agent wallet is used |
+
+</details>
 
 ## Activity log
 
@@ -379,6 +567,7 @@ The app has no database. Activity is in memory. Configuration is environment var
 
 ```text
 ovelo/
+|-- .github/workflows/ci.yml
 |-- app/
 |   |-- api/agent/           # streaming Gemini chat + tools
 |   |-- api/escrow/          # status, deal, fund, refund, scan
@@ -399,12 +588,15 @@ ovelo/
 |   |-- tools.ts             # 9 tool declarations
 |   `-- wallet.ts
 |-- components/              # chat, activity, wallet, ticket cards
+|-- lib/                     # shared links, health, activity helpers
 |-- escrow/
 |   |-- contracts/OveloEscrow.sol
 |   |-- test/
 |   `-- deployments/         # Base Sepolia deployment + smoke tests
 |-- experiments/model-comparison/
-|-- docs/PROOF.md
+|-- docs/
+|   |-- PROOF.md
+|   `-- screenshots/         # capture plan only (no images yet)
 |-- public/logo.png
 |-- test/                    # 103 unit tests
 |-- CHANGELOG.md
@@ -507,28 +699,74 @@ There is no separate `npm run typecheck` or `npm run lint` script in [this repo]
 - **The model experiment is small.** 42 runs, 28 scored; `gemini-3.6-flash` produced no usable data because of 429s. Do not read it as a benchmark.
 - **Not financial or purchase advice.** Do not use this demo to make a real ticket purchase decision.
 
-## Future scope
+## Roadmap
 
-- Richer gate scanner integration: hardware or venue scanner, real ticket state, and a check-in flow that is not a demo button.
-- More demo events, tickets, and seller histories to make the comparison tool more useful.
-- ZK-based private ownership proofs are exploratory. They are not in the current build and not required for the demo.
+This table merges the current future scope, the CHANGELOG plan, the known limits and tester feedback. Status values are **Planned**, **Future**, **Not planned** or **Idea (tester feedback)**.
 
-## Not planned for this demo
+<details>
+<summary>Roadmap (15 items)</summary>
 
-- Real ticketing-platform integration.
-- Mainnet deployment or real funds.
-- A security audit.
-- Per-user wallets or a custody product.
+| Priority | Item | Status |
+| --- | --- | --- |
+| High | Per-visitor escrow funding limit | Planned |
+| High | Fund a LOW-risk ticket only on explicit request | Planned |
+| High | More escrow tests | Planned |
+| Medium | Richer gate scanner integration: hardware or venue scanner, real ticket state, and a check-in flow that is not a demo button | Planned |
+| Medium | More demo tickets and events, and more seller histories to make the comparison tool more useful (tester feedback) | Idea (tester feedback) |
+| Medium | Connect-your-own-wallet (tester feedback) | Idea (tester feedback) |
+| Medium | Export payment proofs and activity as a file (tester feedback) | Idea (tester feedback) |
+| Medium | Faster loading on slow connections and old phones (tester feedback) | Idea (tester feedback) |
+| Low | A short first-time tour (tester feedback) | Idea (tester feedback) |
+| Low | ZK-based private ownership proofs (exploratory; not in the current build) | Future |
+| Low | Real ticketing-platform integration | Not planned |
+| Low | Mainnet deployment and real funds | Not planned |
+| Low | Real ticket data | Not planned |
+| Low | Security audit | Not planned |
+| Low | Per-user wallets or a custody product | Not planned |
 
-## Security and social
+</details>
 
-- Security notes and trust boundaries: [SECURITY.md](SECURITY.md).
-- Report a vulnerability through GitHub private vulnerability reporting, or contact [@0velo_](https://x.com/0velo_).
-- Follow [@0velo_](https://x.com/0velo_). Posts for the hackathon tag [@riseinweb3](https://x.com/riseinweb3).
+## Documentation and contact
+
+- Security notes and trust boundaries: [SECURITY.md](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/SECURITY.md).
+- Changes and release history: [CHANGELOG.md](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/CHANGELOG.md).
+- On-chain proof: [docs/PROOF.md](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/docs/PROOF.md).
+- Model experiment method and raw results: [experiments/model-comparison/README.md](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/experiments/model-comparison/README.md).
+
+| Contact | Link |
+| --- | --- |
+| GitHub | [vishvajitbhagave-dev](https://github.com/vishvajitbhagave-dev) |
+| Builder on X | [@v_bhagave](https://x.com/v_bhagave) |
+| Ovelo on X | [@0velo_](https://x.com/0velo_) |
+| LinkedIn | [vishvajitbhagave-dev](https://www.linkedin.com/in/vishvajitbhagave-dev) |
+
+Report a vulnerability through GitHub private vulnerability reporting, or contact [@0velo_](https://x.com/0velo_). Follow [@0velo_](https://x.com/0velo_); hackathon posts tag [@riseinweb3](https://x.com/riseinweb3).
 
 ## Feedback
 
-The [feedback form](https://docs.google.com/forms/d/e/1FAIpQLSfPd5Sls0mL_PVAOxD-BdBFjh0zDDtFaWqhMxx2Y78vcmoSBw/viewform) takes about a minute. It asks for no personal information. Ovelo uses fake tickets and test money only.
+The [feedback form](https://docs.google.com/forms/d/e/1FAIpQLSfPd5Sls0mL_PVAOxD-BdBFjh0zDDtFaWqhMxx2Y78vcmoSBw/viewform) takes about a minute. It asks for no personal information. Ovelo uses fake tickets and test money only. Feedback is reviewed and used to prioritise roadmap items and documentation fixes; shipped changes are recorded in [CHANGELOG.md](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/CHANGELOG.md).
+
+### Early testers
+
+Ovelo visitors use a shared demo wallet and do not connect their own, so testers are listed anonymously by what they tried and what they said; the Evidence column links a real payment from their session when they shared one and it checked out. There were 5 form responses: clarity was rated 5 out of 5 by all 5, 4 answered Yes to whether the payment proof made them trust the result more and 1 left it blank, and no tester reported anything failing, slow or confusing. 4 shared a transaction link; all 4 were checked on-chain and are real Ovelo transactions: 2 are x402 report payments from the agent wallet to the receiver for 0.01 USDC, and 2 are escrow transactions.
+
+| # | Tester | Date | What they tried | Clarity (1-5) | Trust the proof? | One thing to improve | Evidence |
+| ---: | --- | --- | --- | ---: | --- | --- | --- |
+| 1 | Tester 1 | 2026-10-25 | Checked a ticket, chatted with the agent, looked at the payment proof, opened the Agent wallet or Activity tab | 5 | Yes | Let me connect my own wallet instead of using the shared one. | [escrow release tx](https://sepolia.basescan.org/tx/0x79ca6bb05171ca841327127b5a4496ee7dc5f73387012499d409982d3668aefa) (block 50114071, escrow release to seller) |
+| 2 | Tester 2 | 2026-10-25 | Checked a ticket, looked at the payment proof, opened the Agent wallet or Activity tab | 5 | Yes | Let me download my payment proofs and activity as a file. | [escrow deposit tx](https://sepolia.basescan.org/tx/0x5744298bdca9316bf93ee084787a745bdf415bf9686815d96beda7d8d0937ef6) (block 50116786, escrow deposit from the agent wallet) |
+| 3 | Tester 3 | 2026-10-25 | Chatted with the agent, just looked around | 5 | — | Add more demo tickets and events to try. | — |
+| 4 | Tester 4 | 2026-10-26 | Checked a ticket, chatted with the agent, looked at the payment proof, opened the Agent wallet or Activity tab | 5 | Yes | Make the app faster on slow internet and old phones. | [tx](https://sepolia.basescan.org/tx/0xba5a328ef9326035e7b28c60122038607a277996a17e0dc9dab03ec6f980793e) (verified, block 50310311) |
+| 5 | Tester 5 | 2026-10-26 | Checked a ticket | 5 | Yes | Add a quick tour that shows what to click first. | [tx](https://sepolia.basescan.org/tx/0x76bd5e0a8f93f749499318cd4cde756fd162c835c451e7f25e3ec9bfbb4d3549) (verified, block 50337638) |
+
+The responses are in the [Live feedback responses (Google Sheet)](https://docs.google.com/spreadsheets/d/1Wzp8YbDaNHE-0TqWcGKauinF0d86Zk_VNA5kT9sLK4s/edit?gid=1576403258#gid=1576403258).
+
+<!--
+Feedback -> Improvement -> Commit template. Fill only with verified entries; never add tester names, emails or wallet addresses.
+
+| Feedback | Improvement | Commit |
+| --- | --- | --- |
+|  |  |  |
+-->
 
 ## License
 
