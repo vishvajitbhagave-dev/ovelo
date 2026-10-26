@@ -20,5 +20,5 @@ No screenshots are committed yet. The main README shows visible text placeholder
 | `06-basescan-transaction.png` | A Basescan transaction page for the escrow fund or check-in | Any recorded transaction from `docs/PROOF.md` |
 | `07-basescan-verified-contract.png` | Basescan showing the OveloEscrow source verified against the deployed bytecode | Contract **Code** tab |
 | `08-reused-report.png` | A reused paid report labelled as no new payment, with the original block and transaction | Same ticket report requested twice |
-| `09-mobile-view.png` | The mobile layout of the Tickets and Check tabs | Narrow viewport |
+| `09-mobile-view.jpeg` | The mobile layout of the Tickets and Check tabs | Narrow viewport |
 | `10-health-endpoint.png` | The `/api/health` JSON response with safe status fields | `GET /api/health` |

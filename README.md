@@ -177,87 +177,67 @@ The important property: the agent can propose a funding, but the server re-check
 
 ## Screenshots
 
-These are planned placeholders. No image is embedded yet, so the page has no broken images. The capture plan is in [`docs/screenshots/README.md`](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/docs/screenshots/README.md).
+Screenshots from the demo. The capture plan is in [`docs/screenshots/README.md`](https://github.com/vishvajitbhagave-dev/ovelo/blob/main/docs/screenshots/README.md).
 
 ### Tickets tab
 
 The six demo tickets with their price, resale cap and risk labels.
 
-*Screenshot coming soon: docs/screenshots/01-tickets.png*
-
-<!-- ![Tickets tab](docs/screenshots/01-tickets.png) -->
+<img src="docs/screenshots/01-tickets.png" alt="Tickets tab" width="800">
 
 ### HIGH-risk check
 
 The Check tab for OV-1002 showing the HIGH risk score and the refusal to fund.
 
-*Screenshot coming soon: docs/screenshots/02-check-high-risk.png*
-
-<!-- ![HIGH-risk check](docs/screenshots/02-check-high-risk.png) -->
+<img src="docs/screenshots/02-check-high-risk.png" alt="HIGH-risk check" width="800">
 
 ### Verified payment receipt
 
 A paid report receipt with the verified-on-chain payment, block number and transaction link.
 
-*Screenshot coming soon: docs/screenshots/03-verified-payment-receipt.png*
-
-<!-- ![Verified payment receipt](docs/screenshots/03-verified-payment-receipt.png) -->
+<img src="docs/screenshots/03-verified-payment-receipt.png" alt="Verified payment receipt" width="800">
 
 ### Activity tab
 
 The Activity tab logging checks, refusals, escrow events and paid calls.
 
-*Screenshot coming soon: docs/screenshots/04-activity-tab.png*
-
-<!-- ![Activity tab](docs/screenshots/04-activity-tab.png) -->
+<img src="docs/screenshots/04-activity-tab.png" alt="Activity tab" width="800">
 
 ### Agent wallet
 
 The Agent wallet tab with the test ETH and test USDC balances.
 
-*Screenshot coming soon: docs/screenshots/05-agent-wallet.png*
-
-<!-- ![Agent wallet](docs/screenshots/05-agent-wallet.png) -->
+<img src="docs/screenshots/05-agent-wallet.png" alt="Agent wallet" width="800">
 
 ### Basescan transaction
 
 A Basescan transaction page for the escrow fund or check-in.
 
-*Screenshot coming soon: docs/screenshots/06-basescan-transaction.png*
-
-<!-- ![Basescan transaction](docs/screenshots/06-basescan-transaction.png) -->
+<img src="docs/screenshots/06-basescan-transaction.png" alt="Basescan transaction" width="800">
 
 ### Basescan verified contract
 
 Basescan showing the OveloEscrow source verified against the deployed bytecode.
 
-*Screenshot coming soon: docs/screenshots/07-basescan-verified-contract.png*
-
-<!-- ![Basescan verified contract](docs/screenshots/07-basescan-verified-contract.png) -->
+<img src="docs/screenshots/07-basescan-verified-contract.png" alt="Basescan verified contract" width="800">
 
 ### Reused report
 
 A reused paid report labelled as no new payment, with the original block and transaction.
 
-*Screenshot coming soon: docs/screenshots/08-reused-report.png*
-
-<!-- ![Reused report](docs/screenshots/08-reused-report.png) -->
+<img src="docs/screenshots/08-reused-report.png" alt="Reused report" width="800">
 
 ### Mobile view
 
 The mobile layout of the Tickets and Check tabs.
 
-*Screenshot coming soon: docs/screenshots/09-mobile-view.png*
-
-<!-- ![Mobile view](docs/screenshots/09-mobile-view.png) -->
+<img src="docs/screenshots/09-mobile-view.jpeg" alt="Ovelo on a phone" width="300">
 
 ### Health endpoint
 
 The `/api/health` JSON response with safe status fields and no secrets.
 
-*Screenshot coming soon: docs/screenshots/10-health-endpoint.png*
-
-<!-- ![Health endpoint](docs/screenshots/10-health-endpoint.png) -->
+<img src="docs/screenshots/10-health-endpoint.png" alt="Health endpoint" width="800">
 
 ## Quick user guide
 
@@ -684,8 +664,10 @@ There is no separate `npm run typecheck` or `npm run lint` script in [this repo]
 ## Demo videos
 
 - Week 1 (ovelo.v1): [Watch on YouTube](https://youtu.be/xYoUDYy8RFc?si=iMAdcceDjaRnoL8B)
-- Week 2 (ovelo.v2): Demo-video-link
-- Week 3 (ovelo.v3): Demo-video-link
+- Week 2 (ovelo.v2): [Watch on YouTube](https://youtu.be/DlXqez0-c58)
+- Week 3 (ovelo.v3): [Watch on YouTube](https://youtu.be/DlXqez0-c58)
+
+Weeks 2 and 3 are covered in one video.
 
 ## Known limits
 
